@@ -1,0 +1,60 @@
+services:
+  consent-management:
+    build: ./services/consent-management
+    ports: ["8001:8001"]
+    env_file: .env
+    volumes: ["consent-data:/app/data"]
+
+  connector-config:
+    build: ./services/connector-config
+    ports: ["8002:8002"]
+    env_file: .env
+    volumes: ["connector-data:/app/data"]
+
+  registry-intelligence:
+    build: ./services/registry-intelligence
+    ports: ["8003:8003"]
+    env_file: .env
+    volumes: ["registry-data:/app/data"]
+
+  delivery-intelligence:
+    build: ./services/delivery-intelligence
+    ports: ["8004:8004"]
+    env_file: .env
+    volumes: ["delivery-data:/app/data"]
+
+  openg2p-sync:
+    build: ./services/openg2p-sync
+    ports: ["8005:8005"]
+    env_file: .env
+
+  sunbird-adapter:
+    build: ./services/sunbird-adapter
+    ports: ["8006:8006"]
+    env_file: .env
+
+  api-gateway:
+    build: ./services/api-gateway
+    ports: ["8000:8000"]
+    env_file: .env
+    depends_on:
+      - consent-management
+      - connector-config
+      - registry-intelligence
+      - delivery-intelligence
+      - openg2p-sync
+      - sunbird-adapter
+
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    depends_on:
+      - api-gateway
+
+volumes:
+  consent-data:
+  connector-data:
+  registry-data:
+  delivery-data:
