@@ -1,8 +1,8 @@
-# Ready-to-deploy compose file for Hostinger's Docker Manager (hPanel -> VPS ->
-# Docker Manager -> Compose -> "Compose from URL", pointed at this file's raw
-# GitHub URL — Docker Manager pulls and reads the file directly, no repo clone
-# needed on the box). Every service uses a pre-built image from Docker Hub
-# (pushed by .github/workflows/docker-publish.yml) — nothing is built on the VPS.
+# Ready-to-deploy compose file for Hostinger's Docker Manager. Paste this whole
+# file into hPanel -> your VPS -> Docker Manager -> Compose -> "Compose
+# manually", or use "Compose from URL" with this file's raw GitHub URL if the
+# repo is public. Every service uses a pre-built image from Docker Hub (pushed
+# by .github/workflows/docker-publish.yml) — nothing is built on the VPS.
 #
 # Only ONE port is published to the internet: 6561, mapped to the frontend's
 # nginx, which serves the config console AND reverse-proxies /api/* to
@@ -10,11 +10,12 @@
 # reachable through this one port. Every other service is internal-only,
 # reachable solely via the compose network, not from the internet.
 #
-# One-time prerequisite on the VPS (SSH in once before first deploy):
-#   docker network create social-registry-net
-# This is the same network deploy/README.md uses for a real Sunbird RC/OpenG2P
-# deployment — creating it costs nothing if you're not running those yet, and
-# means you can join them later without redeploying this file.
+# Self-contained on purpose: no external network, no prerequisite commands —
+# `docker compose up -d` (or Docker Manager's deploy button) is all this needs.
+# That means it does NOT reach a real Sunbird RC/OpenG2P/DIGIT/Inji yet — the
+# adapters just report "unreachable" until you're ready for that (see
+# deploy/README.md's fuller path, which adds those on a shared
+# `social-registry-net` network instead of this file's private one).
 #
 # To pin a specific version instead of `latest`: replace every `-latest` tag
 # below with `-<git-sha>` (see the Actions tab for the sha CI built), or with a
@@ -59,15 +60,15 @@ services:
       OPENG2P_BASE_URL: http://odoo:8069
       OPENG2P_SYNC_MODE: manual
       OPENG2P_SYNC_CRON: "0 */6 * * *"
-    networks: ["default", "social-registry-net"]
     restart: unless-stopped
 
   sunbird-adapter:
     image: mishramesh/mysocial:sunbird-adapter-latest
     environment:
       # Real Sunbird RC's `registry` service — see deploy/sunbird-rc/README.md.
+      # Unreachable from this file's own network until you follow that guide
+      # and join Sunbird RC to a shared network with this platform.
       SUNBIRD_RC_BASE_URL: http://registry:8091
-    networks: ["default", "social-registry-net"]
     restart: unless-stopped
 
   digit-adapter:
@@ -76,7 +77,6 @@ services:
       DIGIT_BASE_URL: http://localhost:8083
       DIGIT_TENANT_ID: pilot
       DIGIT_BUSINESS_SERVICE: REGISTRY_VERIFICATION
-    networks: ["default", "social-registry-net"]
     restart: unless-stopped
 
   inji-adapter:
@@ -85,7 +85,6 @@ services:
       INJI_CERTIFY_BASE_URL: http://localhost:8084
       INJI_VERIFY_BASE_URL: http://localhost:8085
       INJI_VERIFY_PATH: /v1/verify/vc-verification
-    networks: ["default", "social-registry-net"]
     restart: unless-stopped
 
   api-gateway:
@@ -127,7 +126,3 @@ volumes:
   connector-data:
   registry-data:
   delivery-data:
-
-networks:
-  social-registry-net:
-    external: true

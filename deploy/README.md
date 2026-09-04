@@ -39,16 +39,18 @@ deploy/
 ## Quickest path: Hostinger Docker Manager
 
 If you just want this platform's own 9 services + frontend running on your Hostinger
-VPS, pulling pre-built images (no git clone, no build step, no compose knowledge
-needed beyond pasting a URL):
+VPS, pulling pre-built images — `deploy/docker-compose.hostinger.yml` is self-contained
+(no external network, no prerequisite commands, nothing to build):
 
-1. SSH into the VPS once and run `docker network create social-registry-net` (harmless
-   if you're not running Sunbird RC/OpenG2P yet — just future-proofs joining them later).
-2. hPanel → your VPS → **Docker Manager** → **Compose** → **Compose from URL**.
-3. Paste the raw URL of `deploy/docker-compose.hostinger.yml` in this repo
-   (`https://raw.githubusercontent.com/mishraramesh-design/socialregistrymine/main/deploy/docker-compose.hostinger.yml`)
-   and deploy.
-4. The whole platform is reachable on **port 6561** — nginx (inside the `frontend`
+1. hPanel → your VPS → **Docker Manager** → **Compose**.
+2. **Compose manually** — paste the full contents of `deploy/docker-compose.hostinger.yml`
+   into the editor and deploy. This is the reliable option; use it if the repo is
+   private (see below).
+   - *Compose from URL* also works, pointed at this file's raw GitHub URL, but
+     **only if the repo is public** — GitHub's raw-content URLs 404 on an
+     unauthenticated fetch against a private repo, which is what "it failed"
+     usually means here. Make the repo public first, or stick to pasting manually.
+3. The whole platform is reachable on **port 6561** — nginx (inside the `frontend`
    container) serves the config console and reverse-proxies `/api/*` to `api-gateway`
    internally, so one port is all you need. Nothing else is published to the internet.
 
