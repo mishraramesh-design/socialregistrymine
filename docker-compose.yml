@@ -39,6 +39,22 @@ services:
       - default
       - social-registry-net
 
+  digit-adapter:
+    build: ./services/digit-adapter
+    ports: ["8007:8007"]
+    env_file: .env
+    networks:
+      - default
+      - social-registry-net
+
+  inji-adapter:
+    build: ./services/inji-adapter
+    ports: ["8008:8008"]
+    env_file: .env
+    networks:
+      - default
+      - social-registry-net
+
   api-gateway:
     build: ./services/api-gateway
     ports: ["8000:8000"]
@@ -50,6 +66,8 @@ services:
       - delivery-intelligence
       - openg2p-sync
       - sunbird-adapter
+      - digit-adapter
+      - inji-adapter
 
   frontend:
     build: ./frontend

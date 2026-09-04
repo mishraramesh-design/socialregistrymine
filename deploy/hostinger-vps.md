@@ -13,7 +13,7 @@ Source: [Hostinger VPS Hosting](https://www.hostinger.com/vps-hosting).
 Why KVM 8: Sunbird RC's own compose file runs ~23 containers (Elasticsearch, two
 Postgres-family databases across the three stacks, Keycloak, Vault, Kafka+Zookeeper,
 Redis, ClickHouse, MinIO, plus a dozen application microservices), OpenG2P adds an
-Odoo + Postgres + Traefik stack on top, and our own 7 services + frontend add modest
+Odoo + Postgres + Traefik stack on top, and our own 9 services + frontend add modest
 but real overhead. None of these are individually heavy, but the *count* adds up in
 base memory (JVMs, Postgres connection pools, Elasticsearch's own overhead) well
 before any real traffic.

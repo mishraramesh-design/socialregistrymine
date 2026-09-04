@@ -27,6 +27,10 @@ jobs:
             context: services/openg2p-sync
           - name: sunbird-adapter
             context: services/sunbird-adapter
+          - name: digit-adapter
+            context: services/digit-adapter
+          - name: inji-adapter
+            context: services/inji-adapter
           - name: api-gateway
             context: services/api-gateway
           - name: frontend

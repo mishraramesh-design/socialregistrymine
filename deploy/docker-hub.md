@@ -1,6 +1,6 @@
 # Docker Hub — building and pushing our own images
 
-This covers **our own** 7 services + frontend only. Sunbird RC and OpenG2P are
+This covers **our own** 9 services + frontend only. Sunbird RC and OpenG2P are
 pulled from their own official registries (`ghcr.io/sunbird-rc/*` and whatever
 `openg2p-erp-docker`'s `common.yaml` references) — we never rebuild or republish
 those.
@@ -23,7 +23,7 @@ traceable back to the exact commit it was built from. `<repo>` defaults to
 
 ## Automatic builds via GitHub Actions (already wired)
 
-`.github/workflows/docker-publish.yml` builds and pushes all 8 images on every push
+`.github/workflows/docker-publish.yml` builds and pushes all 10 images on every push
 to `main` that touches `services/**` or `frontend/**`, using the `DOCKERHUB_USERNAME`
 and `DOCKERHUB_TOKEN` repository secrets — already set on this repo. Nothing further
 to configure; just push to `main` (or trigger it manually from the Actions tab —

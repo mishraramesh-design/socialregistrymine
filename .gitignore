@@ -21,6 +21,11 @@ dist/
 *.sqlite3
 data/
 
+# Trained ML artifacts — built fresh at Docker image build time (see
+# services/registry-intelligence/Dockerfile) so the shipped model always
+# matches the code that trained it.
+*.joblib
+
 # OS
 .DS_Store
 

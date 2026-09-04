@@ -18,6 +18,10 @@ services:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:openg2p-sync-${TAG:-latest}
   sunbird-adapter:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:sunbird-adapter-${TAG:-latest}
+  digit-adapter:
+    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:digit-adapter-${TAG:-latest}
+  inji-adapter:
+    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:inji-adapter-${TAG:-latest}
   api-gateway:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:api-gateway-${TAG:-latest}
   frontend:
