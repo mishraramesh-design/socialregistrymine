@@ -1,0 +1,18 @@
+# Override file — joins the archived openg2p-erp-docker repo's `odoo` service to
+# the shared external network our platform also joins, WITHOUT modifying that
+# repo's own compose files. Run alongside their compose files:
+#
+#   docker compose -f common.yaml -f prod.yaml -f /path/to/this/file up -d
+#
+# (from inside your openg2p-erp-docker clone). Requires the network to already
+# exist: `docker network create social-registry-net`.
+
+services:
+  odoo:
+    networks:
+      - default
+      - social-registry-net
+
+networks:
+  social-registry-net:
+    external: true

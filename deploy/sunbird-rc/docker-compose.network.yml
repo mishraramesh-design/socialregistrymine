@@ -1,0 +1,22 @@
+# Override file — joins Sunbird RC's own registry+nginx services to the shared
+# external network our platform also joins, WITHOUT modifying sunbird-rc-core's
+# own docker-compose.yml. Run alongside their compose file:
+#
+#   docker compose -f docker-compose.yml -f /path/to/this/file up -d
+#
+# (from inside your sunbird-rc-core clone). Requires the network to already
+# exist: `docker network create social-registry-net`.
+
+services:
+  registry:
+    networks:
+      - default
+      - social-registry-net
+  nginx:
+    networks:
+      - default
+      - social-registry-net
+
+networks:
+  social-registry-net:
+    external: true

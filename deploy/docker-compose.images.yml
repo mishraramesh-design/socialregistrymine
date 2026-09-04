@@ -1,0 +1,23 @@
+# Override: use pre-built Docker Hub images instead of building from source.
+# Requires DOCKERHUB_USER and TAG env vars. See deploy/docker-hub.md.
+#
+#   DOCKERHUB_USER=yourusername TAG=v0.2.0 \
+#     docker compose -f docker-compose.yml -f deploy/docker-compose.images.yml up -d
+
+services:
+  consent-management:
+    image: ${DOCKERHUB_USER}/socialregistrymine-consent-management:${TAG:-latest}
+  connector-config:
+    image: ${DOCKERHUB_USER}/socialregistrymine-connector-config:${TAG:-latest}
+  registry-intelligence:
+    image: ${DOCKERHUB_USER}/socialregistrymine-registry-intelligence:${TAG:-latest}
+  delivery-intelligence:
+    image: ${DOCKERHUB_USER}/socialregistrymine-delivery-intelligence:${TAG:-latest}
+  openg2p-sync:
+    image: ${DOCKERHUB_USER}/socialregistrymine-openg2p-sync:${TAG:-latest}
+  sunbird-adapter:
+    image: ${DOCKERHUB_USER}/socialregistrymine-sunbird-adapter:${TAG:-latest}
+  api-gateway:
+    image: ${DOCKERHUB_USER}/socialregistrymine-api-gateway:${TAG:-latest}
+  frontend:
+    image: ${DOCKERHUB_USER}/socialregistrymine-frontend:${TAG:-latest}

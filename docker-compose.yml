@@ -27,11 +27,17 @@ services:
     build: ./services/openg2p-sync
     ports: ["8005:8005"]
     env_file: .env
+    networks:
+      - default
+      - social-registry-net
 
   sunbird-adapter:
     build: ./services/sunbird-adapter
     ports: ["8006:8006"]
     env_file: .env
+    networks:
+      - default
+      - social-registry-net
 
   api-gateway:
     build: ./services/api-gateway
@@ -58,3 +64,10 @@ volumes:
   connector-data:
   registry-data:
   delivery-data:
+
+networks:
+  # Shared with the separately-deployed Sunbird RC and OpenG2P stacks — see
+  # deploy/README.md. Created once per host with `docker network create
+  # social-registry-net` before bringing any of the three stacks up.
+  social-registry-net:
+    external: true

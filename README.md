@@ -102,15 +102,23 @@ socialregistrymine/
 │   ├── sunbird-adapter/        # adapter to a separately-deployed Sunbird RC (scaffold)
 │   └── api-gateway/            # routing layer
 ├── frontend/                   # React + TypeScript + Tailwind config console
-└── docs/
-    └── architecture.md
+├── docs/
+│   └── architecture.md
+└── deploy/                     # real Sunbird RC + OpenG2P wiring, Docker Hub, Hostinger runbook
 ```
 
 Each service scaffold exposes a real, runnable FastAPI app with a documented API contract (`/docs`), so the shape of the platform is executable from day one even before matching/eligibility logic is filled in. `consent-management` is the one fully built out this phase, per the current build priority.
 
 ## Running locally
 
+The compose file joins an external network shared with a real Sunbird RC / OpenG2P
+deployment (see `deploy/`) — create it once, even if you're only running this
+platform standalone (nothing else needs to be listening on it for our own services
+to start; `sunbird-adapter`/`openg2p-sync` just report "unreachable" until a real
+DPG is joined to it):
+
 ```bash
+docker network create social-registry-net
 docker compose up --build
 ```
 
@@ -118,6 +126,19 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Each service's OpenAPI docs: http://localhost:<service-port>/docs
 
+To run this platform against **real** Sunbird RC and OpenG2P instances (not mocked),
+see `deploy/README.md` — it covers cloning both DPGs' own official repos, joining
+them to `social-registry-net`, and the resource sizing that pilot needs (short
+version: Sunbird RC's own stack is ~23 containers; budget accordingly, see
+`deploy/hostinger-vps.md`).
+
 ## Status
 
-This is the initial scaffold: architecture, service boundaries, and the consent-management service are implemented. Registry matching (ML entity resolution), delivery eligibility rules, and the Sunbird RC / OpenG2P / DIGIT / Inji adapters are stubbed with their intended API contracts and are the next build phases.
+Architecture, service boundaries, and the consent-management service are fully
+implemented and tested. Registry matching is a deterministic-only baseline (the
+seam for the trained ML model is marked in `registry-intelligence/app/main.py`);
+delivery eligibility rules are threshold-based only; DIGIT and Inji integration
+aren't started. The Sunbird RC and OpenG2P adapters are real and wired for a live
+deployment (see `deploy/`), though `openg2p-sync`'s beneficiary payload shape is
+still a placeholder pending which OpenG2P module you install (see
+`deploy/openg2p/README.md`).
