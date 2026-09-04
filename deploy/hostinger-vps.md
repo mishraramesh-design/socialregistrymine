@@ -78,9 +78,9 @@ building on the box (see `deploy/docker-hub.md`):
 git clone https://github.com/mishraramesh-design/socialregistrymine.git
 cd socialregistrymine
 cp .env.example .env   # edit SUNBIRD_RC_BASE_URL / OPENG2P_BASE_URL if you changed service names
-DOCKERHUB_USER=yourusername TAG=v0.1.0 \
+DOCKERHUB_USERNAME=mishramesh TAG=<git-sha-from-the-Actions-run-or-"latest"> \
   docker compose -f docker-compose.yml -f deploy/docker-compose.images.yml pull
-DOCKERHUB_USER=yourusername TAG=v0.1.0 \
+DOCKERHUB_USERNAME=mishramesh TAG=<same-tag> \
   docker compose -f docker-compose.yml -f deploy/docker-compose.images.yml up -d
 ```
 

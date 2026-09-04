@@ -1,23 +1,31 @@
 #!/usr/bin/env bash
-# Builds and pushes every socialregistrymine service image to Docker Hub.
-# Does NOT touch Sunbird RC or OpenG2P images — those are pulled from their own
-# official registries per deploy/sunbird-rc/README.md and deploy/openg2p/README.md.
+# Builds and pushes every socialregistrymine service image to a single Docker Hub
+# repo, one tag per service (matches the repo you create by hand — see
+# deploy/docker-hub.md). Does NOT touch Sunbird RC or OpenG2P images — those are
+# pulled from their own official registries per deploy/sunbird-rc/README.md and
+# deploy/openg2p/README.md.
 #
 # Usage:
-#   DOCKERHUB_USER=yourusername ./deploy/build-and-push.sh [tag]
+#   DOCKERHUB_USERNAME=mishramesh ./deploy/build-and-push.sh [tag]
+#   DOCKERHUB_USERNAME=mishramesh DOCKERHUB_REPO=mysocial ./deploy/build-and-push.sh v0.2.0
 #
 # `tag` defaults to the short git commit hash. Every image is also tagged
-# `latest`. Requires `docker login` to have already been run.
+# `<service>-latest`. Requires `docker login` to have already been run.
+# In CI, prefer the GitHub Actions workflow at .github/workflows/docker-publish.yml
+# instead — it does the same thing on every push using the DOCKERHUB_USERNAME/
+# DOCKERHUB_TOKEN repo secrets.
 
 set -euo pipefail
 
-if [[ -z "${DOCKERHUB_USER:-}" ]]; then
-  echo "Set DOCKERHUB_USER, e.g.: DOCKERHUB_USER=yourusername $0" >&2
+if [[ -z "${DOCKERHUB_USERNAME:-}" ]]; then
+  echo "Set DOCKERHUB_USERNAME, e.g.: DOCKERHUB_USERNAME=mishramesh $0" >&2
   exit 1
 fi
 
+REPO="${DOCKERHUB_REPO:-mysocial}"
 TAG="${1:-$(git rev-parse --short HEAD)}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IMAGE="${DOCKERHUB_USERNAME}/${REPO}"
 
 SERVICES=(
   "consent-management"
@@ -30,19 +38,23 @@ SERVICES=(
 )
 
 for service in "${SERVICES[@]}"; do
-  image="${DOCKERHUB_USER}/socialregistrymine-${service}"
-  echo "==> Building ${image}:${TAG}"
-  docker build -t "${image}:${TAG}" -t "${image}:latest" "${REPO_ROOT}/services/${service}"
-  echo "==> Pushing ${image}:${TAG} and :latest"
-  docker push "${image}:${TAG}"
-  docker push "${image}:latest"
+  echo "==> Building ${IMAGE}:${service}-${TAG}"
+  docker build \
+    -t "${IMAGE}:${service}-${TAG}" \
+    -t "${IMAGE}:${service}-latest" \
+    "${REPO_ROOT}/services/${service}"
+  echo "==> Pushing ${IMAGE}:${service}-${TAG} and :${service}-latest"
+  docker push "${IMAGE}:${service}-${TAG}"
+  docker push "${IMAGE}:${service}-latest"
 done
 
-frontend_image="${DOCKERHUB_USER}/socialregistrymine-frontend"
-echo "==> Building ${frontend_image}:${TAG}"
-docker build -t "${frontend_image}:${TAG}" -t "${frontend_image}:latest" "${REPO_ROOT}/frontend"
-echo "==> Pushing ${frontend_image}:${TAG} and :latest"
-docker push "${frontend_image}:${TAG}"
-docker push "${frontend_image}:latest"
+echo "==> Building ${IMAGE}:frontend-${TAG}"
+docker build \
+  -t "${IMAGE}:frontend-${TAG}" \
+  -t "${IMAGE}:frontend-latest" \
+  "${REPO_ROOT}/frontend"
+echo "==> Pushing ${IMAGE}:frontend-${TAG} and :frontend-latest"
+docker push "${IMAGE}:frontend-${TAG}"
+docker push "${IMAGE}:frontend-latest"
 
-echo "==> Done. Images pushed under ${DOCKERHUB_USER}/socialregistrymine-*:${TAG} (and :latest)"
+echo "==> Done. Images pushed under ${IMAGE}:<service>-${TAG} (and :<service>-latest)"
