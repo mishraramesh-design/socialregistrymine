@@ -1,0 +1,133 @@
+# Ready-to-deploy compose file for Hostinger's Docker Manager (hPanel -> VPS ->
+# Docker Manager -> Compose -> "Compose from URL", pointed at this file's raw
+# GitHub URL — Docker Manager pulls and reads the file directly, no repo clone
+# needed on the box). Every service uses a pre-built image from Docker Hub
+# (pushed by .github/workflows/docker-publish.yml) — nothing is built on the VPS.
+#
+# Only ONE port is published to the internet: 6561, mapped to the frontend's
+# nginx, which serves the config console AND reverse-proxies /api/* to
+# api-gateway internally (see frontend/nginx.conf) — so the whole platform is
+# reachable through this one port. Every other service is internal-only,
+# reachable solely via the compose network, not from the internet.
+#
+# One-time prerequisite on the VPS (SSH in once before first deploy):
+#   docker network create social-registry-net
+# This is the same network deploy/README.md uses for a real Sunbird RC/OpenG2P
+# deployment — creating it costs nothing if you're not running those yet, and
+# means you can join them later without redeploying this file.
+#
+# To pin a specific version instead of `latest`: replace every `-latest` tag
+# below with `-<git-sha>` (see the Actions tab for the sha CI built), or with a
+# release tag if you've pushed one via deploy/build-and-push.sh <tag>.
+
+services:
+  consent-management:
+    image: mishramesh/mysocial:consent-management-latest
+    environment:
+      CONSENT_DB_URL: sqlite:///./data/consent.db
+    volumes: ["consent-data:/app/data"]
+    restart: unless-stopped
+
+  connector-config:
+    image: mishramesh/mysocial:connector-config-latest
+    environment:
+      CONNECTOR_DB_URL: sqlite:///./data/connectors.db
+    volumes: ["connector-data:/app/data"]
+    restart: unless-stopped
+
+  registry-intelligence:
+    image: mishramesh/mysocial:registry-intelligence-latest
+    environment:
+      REGISTRY_DB_URL: sqlite:///./data/registry.db
+      MATCH_CONFIDENCE_THRESHOLD: "0.85"
+    volumes: ["registry-data:/app/data"]
+    restart: unless-stopped
+
+  delivery-intelligence:
+    image: mishramesh/mysocial:delivery-intelligence-latest
+    environment:
+      DELIVERY_DB_URL: sqlite:///./data/delivery.db
+    volumes: ["delivery-data:/app/data"]
+    restart: unless-stopped
+
+  openg2p-sync:
+    image: mishramesh/mysocial:openg2p-sync-latest
+    environment:
+      # Real OpenG2P instance's `odoo` service, reachable once you follow
+      # deploy/openg2p/README.md and join it to social-registry-net. Until
+      # then, sync attempts just fail gracefully (logged as "unreachable").
+      OPENG2P_BASE_URL: http://odoo:8069
+      OPENG2P_SYNC_MODE: manual
+      OPENG2P_SYNC_CRON: "0 */6 * * *"
+    networks: ["default", "social-registry-net"]
+    restart: unless-stopped
+
+  sunbird-adapter:
+    image: mishramesh/mysocial:sunbird-adapter-latest
+    environment:
+      # Real Sunbird RC's `registry` service — see deploy/sunbird-rc/README.md.
+      SUNBIRD_RC_BASE_URL: http://registry:8091
+    networks: ["default", "social-registry-net"]
+    restart: unless-stopped
+
+  digit-adapter:
+    image: mishramesh/mysocial:digit-adapter-latest
+    environment:
+      DIGIT_BASE_URL: http://localhost:8083
+      DIGIT_TENANT_ID: pilot
+      DIGIT_BUSINESS_SERVICE: REGISTRY_VERIFICATION
+    networks: ["default", "social-registry-net"]
+    restart: unless-stopped
+
+  inji-adapter:
+    image: mishramesh/mysocial:inji-adapter-latest
+    environment:
+      INJI_CERTIFY_BASE_URL: http://localhost:8084
+      INJI_VERIFY_BASE_URL: http://localhost:8085
+      INJI_VERIFY_PATH: /v1/verify/vc-verification
+    networks: ["default", "social-registry-net"]
+    restart: unless-stopped
+
+  api-gateway:
+    image: mishramesh/mysocial:api-gateway-latest
+    environment:
+      # Blank = no auth (fine here: api-gateway isn't published to the host at
+      # all in this file — only nginx's proxy inside the frontend container can
+      # reach it, over the internal compose network). Set a value via Docker
+      # Manager's environment-variables UI for defense-in-depth if you want it.
+      GATEWAY_API_KEY: ""
+      CONSENT_SERVICE_URL: http://consent-management:8001
+      CONNECTOR_SERVICE_URL: http://connector-config:8002
+      REGISTRY_SERVICE_URL: http://registry-intelligence:8003
+      DELIVERY_SERVICE_URL: http://delivery-intelligence:8004
+      OPENG2P_SYNC_SERVICE_URL: http://openg2p-sync:8005
+      SUNBIRD_ADAPTER_SERVICE_URL: http://sunbird-adapter:8006
+      DIGIT_ADAPTER_SERVICE_URL: http://digit-adapter:8007
+      INJI_ADAPTER_SERVICE_URL: http://inji-adapter:8008
+    depends_on:
+      - consent-management
+      - connector-config
+      - registry-intelligence
+      - delivery-intelligence
+      - openg2p-sync
+      - sunbird-adapter
+      - digit-adapter
+      - inji-adapter
+    restart: unless-stopped
+
+  frontend:
+    image: mishramesh/mysocial:frontend-latest
+    ports: ["6561:80"]
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+volumes:
+  consent-data:
+  connector-data:
+  registry-data:
+  delivery-data:
+
+networks:
+  social-registry-net:
+    external: true

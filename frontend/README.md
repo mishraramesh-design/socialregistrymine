@@ -2,7 +2,12 @@
 
 Operator-facing UI: register connectors, review the Golden and Doubt registries,
 manage consent purposes, configure delivery/eligibility rules, and trigger OpenG2P
-syncs. Talks only to `api-gateway` (`VITE_API_BASE_URL`, default `http://localhost:8000`).
+syncs. Talks only to `api-gateway`, via **relative `/api/*` paths** — the production
+image (`nginx.conf`) reverse-proxies those to `api-gateway` internally, so the whole
+platform is reachable through nginx's single port with no API URL baked in at build
+time. `npm run dev` mirrors this with a Vite dev-server proxy (see `vite.config.ts`)
+pointed at `http://localhost:8000`. Set `VITE_API_BASE_URL` only to override with an
+absolute URL.
 
 Theme: near-black (`ink`) navigation and headings, white content surfaces, zinc/grey
 for structure and secondary text, a single warm-yellow `accent` reserved for primary

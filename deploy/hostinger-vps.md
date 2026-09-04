@@ -1,5 +1,13 @@
 # Hostinger VPS — sizing and provisioning
 
+> **Just want the platform itself running quickly?** See `deploy/README.md`'s
+> "Quickest path: Hostinger Docker Manager" section — paste
+> `deploy/docker-compose.hostinger.yml`'s raw URL into Docker Manager's "Compose
+> from URL" and you're running on port 6561 in a few minutes, no SSH needed beyond
+> one `docker network create` command. The rest of this file is for the fuller
+> picture — running the real DPGs alongside it, sizing, and a proper TLS-terminated
+> public domain instead of a bare port.
+
 ## Sizing (checked against Hostinger's current KVM tiers, Sept 2026)
 
 | Tier | vCPU | RAM | Disk | Fits? |

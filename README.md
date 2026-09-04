@@ -137,11 +137,14 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Each service's OpenAPI docs: http://localhost:<service-port>/docs
 
-To run this platform against **real** Sunbird RC and OpenG2P instances (not mocked),
-see `deploy/README.md` — it covers cloning both DPGs' own official repos, joining
-them to `social-registry-net`, and the resource sizing that pilot needs (short
-version: Sunbird RC's own stack is ~23 containers; budget accordingly, see
-`deploy/hostinger-vps.md`).
+To deploy this platform on a VPS quickly — pulling pre-built images, one public
+port — see `deploy/docker-compose.hostinger.yml`, built for Hostinger's Docker
+Manager "Compose from URL" flow (works via plain `docker compose` anywhere, not
+just Hostinger). To run this platform against **real** Sunbird RC and OpenG2P
+instances (not mocked) alongside it, see `deploy/README.md` — it covers cloning
+both DPGs' own official repos, joining them to `social-registry-net`, and the
+resource sizing that pilot needs (short version: Sunbird RC's own stack is ~23
+containers; budget accordingly, see `deploy/hostinger-vps.md`).
 
 ## Status
 

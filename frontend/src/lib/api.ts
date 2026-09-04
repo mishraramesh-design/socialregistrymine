@@ -1,4 +1,8 @@
-const BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL ?? "http://localhost:8000";
+// Relative by default so the same build works behind any origin: nginx (in the
+// production image) proxies /api/* to api-gateway, and the Vite dev server proxy
+// below does the same thing for `npm run dev`. Only set VITE_API_BASE_URL to
+// override with an absolute URL (e.g. pointing dev at a remote gateway).
+const BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL ?? "";
 
 export class ApiError extends Error {
   constructor(
