@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -54,5 +54,18 @@ class IngestionRunOut(BaseModel):
     triggered_by: str
     status: str
     records_seen: int
+    golden_count: int
+    doubt_count: int
+    failed_count: int
+    error: Optional[str] = None
     started_at: datetime
     completed_at: Optional[datetime] = None
+
+
+class TriggerRunRequest(BaseModel):
+    records: Optional[List[Dict[str, str]]] = Field(
+        None,
+        description="Raw source-side records to ingest, required for database/flat_file connectors "
+        "(no live driver exists yet — see README). Ignored for api connectors, which fetch live from "
+        "connection_config['url'] instead.",
+    )

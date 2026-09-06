@@ -41,6 +41,10 @@ class IngestionRun(Base):
     triggered_by = Column(String, nullable=False)
     status = Column(String, nullable=False, default="queued")
     records_seen = Column(Integer, nullable=False, default=0)
+    golden_count = Column(Integer, nullable=False, default=0)
+    doubt_count = Column(Integer, nullable=False, default=0)
+    failed_count = Column(Integer, nullable=False, default=0)
+    error = Column(String, nullable=True)
     started_at = Column(DateTime, default=_now)
     completed_at = Column(DateTime, nullable=True)
 

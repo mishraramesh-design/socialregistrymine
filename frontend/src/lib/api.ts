@@ -57,9 +57,25 @@ export interface Connector {
   name: string;
   source_type: "database" | "api" | "flat_file";
   department: string;
+  connection_config: Record<string, string>;
+  schema_mapping: Record<string, string>;
   refresh_mode: string;
   status: "draft" | "active" | "paused";
   created_at: string;
+}
+
+export interface IngestionRun {
+  id: string;
+  connector_id: string;
+  triggered_by: string;
+  status: "queued" | "running" | "completed" | "failed";
+  records_seen: number;
+  golden_count: number;
+  doubt_count: number;
+  failed_count: number;
+  error?: string;
+  started_at: string;
+  completed_at?: string;
 }
 
 export interface GoldenRecord {

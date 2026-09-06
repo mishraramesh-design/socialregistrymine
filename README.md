@@ -19,7 +19,7 @@ The platform does **not** reimplement identity, credentialing, or payment infras
 
 | Service | Responsibility |
 |---|---|
-| `connector-config` | No-code source onboarding: register a DB/API/flat-file source, map its fields to the canonical citizen/family schema, set refresh cadence. Drives a generic ingestion engine — no bespoke code per source. |
+| `connector-config` | No-code source onboarding: register a DB/API/flat-file source, map its fields to the canonical citizen/family schema, set refresh cadence. Triggering a run actually maps and ingests records into `registry-intelligence` — API sources fetch live; database/flat-file sources (no live driver yet) take records in the request body. |
 | `registry-intelligence` | Data standardization, entity resolution (deterministic hard-ID matching + a trained ML model scoring name/DOB/address similarity — see `app/matching/`), classification (Unique+Complete / Unique+Incomplete / Complete+Not-unique / Neither), and the **Doubt Registry** — the queue of unresolved records with full evidence trail, resolved only by human review. Persisted (SQLite/SQLAlchemy). |
 | `sunbird-adapter` | Thin adapter between `registry-intelligence`'s confirmed golden records and a **separately deployed Sunbird RC** instance. Kept as its own service so the registry backend (Sunbird RC today) can be swapped without touching matching logic. |
 
@@ -154,7 +154,11 @@ hard-ID matching + a logistic-regression model on name/DOB/address similarity �
 `services/registry-intelligence/app/matching/`, retrained at Docker build time from
 `train.py`), threshold-based eligibility/exclusion rules, optional gateway auth, and
 CI that builds/pushes every image to Docker Hub on push to `main`
-(`.github/workflows/docker-publish.yml`).
+(`.github/workflows/docker-publish.yml`). The connector-config → registry-intelligence
+pipeline is real end to end — triggering a run maps source records through the
+connector's schema and ingests them, verified against a live registry-intelligence
+including a fuzzy-duplicate re-run correctly merging rather than duplicating.
+Deployed and live on a Hostinger VPS via `deploy/docker-compose.hostinger.yml`.
 
 **Real but unverified against a live instance**: the Sunbird RC, OpenG2P, DIGIT, and
 Inji adapters are wired against each DPG's actual documented API shape (not guessed),
