@@ -120,4 +120,17 @@ def get_schedule():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "openg2p-sync"}
+    """See sunbird-adapter's health handler for why this probes the
+    downstream DPG rather than just reporting this service's own liveness."""
+    downstream_reachable = False
+    try:
+        with httpx.Client(timeout=2.0) as client:
+            client.get(OPENG2P_BASE_URL)
+        downstream_reachable = True
+    except httpx.HTTPError:
+        pass
+    return {
+        "status": "ok",
+        "service": "openg2p-sync",
+        "downstream": {"name": "OpenG2P", "reachable": downstream_reachable},
+    }

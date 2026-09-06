@@ -29,6 +29,8 @@ deploy/
 │                                     #   below for all three real DPGs — run on your VPS
 ├── docker-compose.hostinger.yml     # ready-to-paste file for Hostinger Docker Manager's
 │                                     #   "Compose from URL" — pulls images, one public port (6561)
+├── docker-compose.hostinger-networked.yml  # same, but joins social-registry-net so real
+│                                     #   Sunbird RC/OpenG2P/Inji on the same VPS can be reached
 ├── docker-compose.images.yml        # override for the manual path: run OUR platform from
 │                                     #   pushed images instead of building from source
 ├── sunbird-rc/
@@ -68,6 +70,17 @@ deployments per the sections below. Without them running, `sunbird-adapter`,
 until you bring a given DPG up. `digit-adapter` is the exception: it's already
 wired to `digit-mock` (bundled, no separate deployment), so the
 verification-routing story works out of the box even in this quick path.
+
+**Ready to connect real DPGs to this same Hostinger deployment?** Switch to
+`deploy/docker-compose.hostinger-networked.yml` instead — identical stack, same
+named volumes (so already-seeded data carries over under the same Docker
+Manager stack), but `openg2p-sync`, `sunbird-adapter`, and `inji-adapter` also
+join the external `social-registry-net` network so they can actually reach a
+real Sunbird RC/OpenG2P/Inji running alongside them on the same VPS. That
+network must exist first — `docker network create social-registry-net`, or run
+`deploy/deploy-all-dpgs.sh` first, which creates it as part of bringing up each
+DPG — otherwise `docker compose up` fails outright looking for a network that
+doesn't exist yet.
 
 ## The shared network
 

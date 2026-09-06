@@ -37,9 +37,9 @@ The platform does **not** reimplement identity, credentialing, or payment infras
 | Service | Responsibility |
 |---|---|
 | `consent-management` | DPDP Act–aligned consent capture, purpose limitation, revocation, and audit trail for every data-sharing action between a source system, the registry, and delivery. |
-| `api-gateway` | Single entry point routing `/api/<service>/*` to each backend microservice; where the frontend and any external caller connect. Optional shared-secret auth (`GATEWAY_API_KEY`) for machine-to-machine callers — see `services/api-gateway/README.md` for why that's not yet suitable for the frontend itself. |
+| `api-gateway` | Single entry point routing `/api/<service>/*` to each backend microservice; where the frontend and any external caller connect. Also aggregates a live cross-service health map (`/api/health`, each adapter probing its own downstream DPG) and a unified audit trail (`/api/audit/timeline`) — see below. Optional shared-secret auth (`GATEWAY_API_KEY`) for machine-to-machine callers — see `services/api-gateway/README.md` for why that's not yet suitable for the frontend itself. |
 | `demo-seeder` | Runs the synthetic POC story (`scripts/seed_demo.py`'s logic) server-side through `api-gateway`'s own APIs, triggered by the frontend's **Seed Demo Data** button — one click instead of shell access. |
-| `frontend` | Configuration console — the operator-facing UI for connectors, registry/doubt-registry review, consent, delivery rules, and OpenG2P sync triggers. |
+| `frontend` | Configuration console — the operator-facing UI for connectors, registry/doubt-registry review, consent, delivery rules, OpenG2P sync triggers, a live **System Map** of the whole pipeline, and the aggregated **Audit Trail**. |
 
 ## Architecture
 
@@ -152,7 +152,7 @@ containers; budget accordingly, see `deploy/hostinger-vps.md`).
 
 ## Status
 
-**Done and tested**: architecture, all 10 services, the frontend, persistent storage
+**Done and tested**: architecture, all 11 services, the frontend, persistent storage
 for the four data-owning services, a trained ML entity-resolution model (deterministic
 hard-ID matching + a logistic-regression model on name/DOB/address similarity —
 `services/registry-intelligence/app/matching/`, retrained at Docker build time from
@@ -185,13 +185,33 @@ adapters are wired against each DPG's actual documented API shape (not guessed),
 `deploy/deploy-all-dpgs.sh` automates cloning and bringing up all three real DPGs
 (joined to the shared network, per `deploy/`) — but none has actually been run yet:
 that needs a real Docker host (your VPS), which this development environment doesn't
-have. Specific known gaps to close once real instances exist: `openg2p-sync`'s
-beneficiary payload shape depends on which OpenG2P module you install; `inji-adapter`'s
-`INJI_VERIFY_PATH` is an unconfirmed guess. DIGIT itself isn't deployed for this POC at
-all — it's Kubernetes/Helm-first with no lightweight compose demo — `digit-adapter`
-currently points at `digit-mock` (`services/digit-mock/`), a small stand-in
-implementing the same API shape, so the verification-routing story still works end to
-end; swapping in a real cluster later needs no adapter changes.
+have. `deploy/docker-compose.hostinger-networked.yml` is the Hostinger variant that
+joins that shared network. Specific known gaps to close once real instances exist:
+`openg2p-sync`'s beneficiary payload shape depends on which OpenG2P module you install;
+`inji-adapter`'s `INJI_VERIFY_PATH` is an unconfirmed guess. DIGIT itself isn't deployed
+for this POC at all — it's Kubernetes/Helm-first with no lightweight compose demo —
+`digit-adapter` currently points at `digit-mock` (`services/digit-mock/`), a small
+stand-in implementing the same API shape, so the verification-routing story still works
+end to end; swapping in a real cluster later needs no adapter changes.
+
+**A System Map and Audit Trail make the whole pipeline visible and auditable**: the
+frontend's **System Map** page renders the full flow — sources → connectors → registry
+(golden/doubt) → delivery → each DPG adapter → the real DPG — as live status cards
+refreshed every 10s, backed by a genuine reachability probe api-gateway added to every
+adapter's `/health` (a plain liveness check can't tell you whether the *DPG behind* an
+adapter is actually up; a live demo needs that distinction to be honest, not
+decorative). The **Audit Trail** page aggregates every consent grant/revocation,
+ingestion run, golden-record creation, doubt flag/resolution, verification case,
+DIGIT routing, Sunbird RC push, and OpenG2P sync into one chronological, filterable
+trail via a new `GET /api/audit/timeline` on `api-gateway`. Building this surfaced
+two more real bugs, both fixed: the frontend's aggregate health check had silently
+never worked in production, because nginx only proxies paths under `/api/` but
+`api-gateway`'s own `/health` wasn't registered under that prefix (now aliased at
+`/api/health` too); and sorting the aggregated timeline crashed on real seeded data
+because the four SQLite-backed services return naive datetimes (SQLAlchemy drops
+tzinfo on the SQLite round-trip) while the in-memory adapters return timezone-aware
+ones — fixed by normalizing every timestamp to UTC on the way in, with a test that
+deliberately mixes both styles so this can't regress silently.
 
 **Not started**: the per-client fine-tuning loop described in `docs/architecture.md`
 (the base ML model above is trained on synthetic data only — no deployment's real

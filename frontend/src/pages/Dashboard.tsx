@@ -23,7 +23,7 @@ export default function Dashboard() {
       api.get<GoldenRecord[]>("/api/registry/golden-records").catch(() => []),
       api.get<DoubtRecord[]>("/api/registry/doubt-records").catch(() => []),
       api.get<ConsentRecord[]>("/api/consent/consents").catch(() => []),
-      api.get<GatewayHealth>("/health").catch(() => null),
+      api.get<GatewayHealth>("/api/health").catch(() => null),
     ])
       .then(([c, g, d, cons, h]) => {
         setConnectors(c);

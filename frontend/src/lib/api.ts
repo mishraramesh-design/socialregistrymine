@@ -47,9 +47,23 @@ export const api = {
     request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
 };
 
+export interface DownstreamHealth {
+  name: string;
+  reachable: boolean;
+}
+
+export interface ServiceHealth {
+  status: string;
+  service?: string;
+  // Adapters report reachability of the real DPG behind them; sunbird/digit/
+  // openg2p-sync nest one DownstreamHealth directly, inji-adapter nests two
+  // (certify + verify) since Inji Certify and Verify are independent.
+  downstream?: DownstreamHealth | Record<string, DownstreamHealth>;
+}
+
 export interface GatewayHealth {
   gateway: string;
-  services: Record<string, { status: string }>;
+  services: Record<string, ServiceHealth>;
 }
 
 export interface Connector {
@@ -116,6 +130,15 @@ export interface SchemeRule {
   name: string;
   eligibility_conditions: { field: string; op: string; value: number }[];
   exclusion_conditions: { field: string; op: string; value: number }[];
+}
+
+export interface AuditEvent {
+  timestamp: string;
+  service: "consent" | "connectors" | "registry" | "delivery" | "digit" | "sunbird" | "openg2p-sync";
+  action: string;
+  actor?: string;
+  summary: string;
+  detail: Record<string, unknown>;
 }
 
 export interface DemoSeedStatus {

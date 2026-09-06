@@ -7,16 +7,20 @@ import {
   ScrollText,
   Wallet,
   RefreshCw,
+  History,
+  Network,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/system-map", label: "System Map", icon: Network },
   { to: "/connectors", label: "Connectors", icon: Plug },
   { to: "/registry", label: "Golden Registry", icon: IdCard },
   { to: "/doubt-registry", label: "Doubt Registry", icon: ShieldQuestion },
   { to: "/consent", label: "Consent", icon: ScrollText },
   { to: "/delivery", label: "Delivery Rules", icon: Wallet },
   { to: "/openg2p-sync", label: "OpenG2P Sync", icon: RefreshCw },
+  { to: "/audit-trail", label: "Audit Trail", icon: History },
 ];
 
 export default function Sidebar() {

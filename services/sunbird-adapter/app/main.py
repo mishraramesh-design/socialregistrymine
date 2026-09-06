@@ -85,6 +85,15 @@ def push_golden_record(golden_record_id: str, payload: GoldenRecordPush):
     return record
 
 
+@app.get("/golden-records", response_model=list[RegistrationRecord])
+def list_registrations():
+    """Every push attempt this instance has made, newest first — used by
+    api-gateway's /audit/timeline aggregation. In-memory, like the rest of
+    this adapter's state: a run/registration log, not registry data, so it
+    resets on restart."""
+    return sorted(_registrations.values(), key=lambda r: r.pushed_at, reverse=True)
+
+
 @app.get("/golden-records/{golden_record_id}/status", response_model=RegistrationRecord)
 def get_status(golden_record_id: str):
     record = _registrations.get(golden_record_id)
@@ -95,4 +104,21 @@ def get_status(golden_record_id: str):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "sunbird-adapter"}
+    """The adapter itself is always 'ok' if this responds at all — the
+    interesting question for a system map is whether the real DPG behind it
+    is actually reachable, which a plain liveness check can't tell you. A
+    short, unauthenticated GET to the base URL only distinguishes
+    TCP/DNS-reachable from not; any HTTP response (even a 404) counts as
+    reachable, since exact health-endpoint paths vary by DPG version."""
+    downstream_reachable = False
+    try:
+        with httpx.Client(timeout=2.0) as client:
+            client.get(SUNBIRD_RC_BASE_URL)
+        downstream_reachable = True
+    except httpx.HTTPError:
+        pass
+    return {
+        "status": "ok",
+        "service": "sunbird-adapter",
+        "downstream": {"name": "Sunbird RC", "reachable": downstream_reachable},
+    }

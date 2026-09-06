@@ -116,6 +116,15 @@ def route_case(case_id: str, payload: RouteCaseRequest):
     return record
 
 
+@app.get("/verification-cases", response_model=list[RoutingRecord])
+def list_routings():
+    """Every routing attempt this instance has made, newest first — used by
+    api-gateway's /audit/timeline aggregation. In-memory, like the rest of
+    this adapter's state (see module docstring): a run/registration log, not
+    registry data, so it resets on restart."""
+    return sorted(_routings.values(), key=lambda r: r.routed_at, reverse=True)
+
+
 @app.get("/verification-cases/{case_id}/status", response_model=RoutingRecord)
 def get_case_status(case_id: str):
     record = _routings.get(case_id)
@@ -143,4 +152,17 @@ def get_case_status(case_id: str):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "digit-adapter"}
+    """See sunbird-adapter's health handler for why this probes the
+    downstream DPG rather than just reporting the adapter's own liveness."""
+    downstream_reachable = False
+    try:
+        with httpx.Client(timeout=2.0) as client:
+            client.get(DIGIT_BASE_URL)
+        downstream_reachable = True
+    except httpx.HTTPError:
+        pass
+    return {
+        "status": "ok",
+        "service": "digit-adapter",
+        "downstream": {"name": "DIGIT", "reachable": downstream_reachable},
+    }

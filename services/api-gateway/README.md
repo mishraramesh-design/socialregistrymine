@@ -1,10 +1,25 @@
 # api-gateway
 
 Routes `/api/<service>/*` to the matching backend (`consent`, `connectors`, `registry`,
-`delivery`, `openg2p-sync`, `sunbird`, `digit`, `inji`). `GET /health` pings every
+`delivery`, `openg2p-sync`, `sunbird`, `digit`, `inji`, `demo`). `GET /health` pings every
 downstream service and reports an aggregate status — useful for the frontend's
 dashboard, and deliberately not behind the API key gate (see below) so infra
-monitoring doesn't need the application secret.
+monitoring doesn't need the application secret. Also registered at `GET /api/health`
+(same handler) — **use this path from the frontend**, not the bare one: nginx's
+production config only proxies paths under `/api/` (see `frontend/nginx.conf`), so a
+browser request to a bare `/health` never reaches this service, it falls through to
+the SPA's own `index.html` instead.
+
+`GET /api/audit/timeline` aggregates every auditable action across every service —
+consent grants/revocations, ingestion runs, golden record creation, doubt
+flags/resolutions, verification cases, DIGIT routing, Sunbird RC pushes, and OpenG2P
+syncs — into one chronological trail, normalized into a common `{timestamp, service,
+action, actor, summary, detail}` shape and sorted newest-first. Best-effort per
+service: a slow or unreachable service just contributes no events rather than failing
+the whole call. Powers the frontend's **Audit Trail** page. Every adapter's own
+`/health` (sunbird, digit, inji, openg2p-sync) also reports a `downstream` field —
+a real reachability probe of the DPG behind it, not just this adapter's own liveness —
+which powers the frontend's **System Map** page.
 
 ## Auth
 

@@ -1,0 +1,174 @@
+# Same as deploy/docker-compose.hostinger.yml, but joins a shared external
+# Docker network (`social-registry-net`) so this platform's DPG adapters can
+# actually reach a real Sunbird RC / OpenG2P / Inji running on the same VPS,
+# per deploy/{sunbird-rc,openg2p,inji}/README.md (or the one-shot
+# deploy/deploy-all-dpgs.sh). digit-adapter is unaffected — it talks to
+# digit-mock, bundled in this same file, since real DIGIT needs Kubernetes.
+#
+# Use this file INSTEAD OF docker-compose.hostinger.yml once you're ready to
+# connect real DPGs, not alongside it — same stack, same services, same named
+# volumes (so your existing seeded data carries over if you're switching from
+# the plain file under the same Docker Manager stack), just with three
+# services also attached to social-registry-net.
+#
+# Prerequisite (unlike the plain file): the network must already exist, or
+# `docker compose up` fails outright:
+#   docker network create social-registry-net
+# `deploy/deploy-all-dpgs.sh` creates this for you as part of bringing up each
+# DPG — run it first if you haven't brought up any real DPG yet.
+#
+# Same one-public-port design as the plain file: only 6561 (frontend) is
+# published to the internet. social-registry-net is a second, still-private
+# Docker network these three services also join — it does not expose anything
+# new externally.
+
+services:
+  consent-management:
+    image: mishramesh/mysocial:consent-management-latest
+    pull_policy: always
+    environment:
+      CONSENT_DB_URL: sqlite:///./data/consent.db
+    volumes: ["consent-data:/app/data"]
+    restart: unless-stopped
+
+  connector-config:
+    image: mishramesh/mysocial:connector-config-latest
+    pull_policy: always
+    environment:
+      CONNECTOR_DB_URL: sqlite:///./data/connectors.db
+    volumes: ["connector-data:/app/data"]
+    restart: unless-stopped
+
+  registry-intelligence:
+    image: mishramesh/mysocial:registry-intelligence-latest
+    pull_policy: always
+    environment:
+      REGISTRY_DB_URL: sqlite:///./data/registry.db
+      MATCH_CONFIDENCE_THRESHOLD: "0.85"
+    volumes: ["registry-data:/app/data"]
+    restart: unless-stopped
+
+  delivery-intelligence:
+    image: mishramesh/mysocial:delivery-intelligence-latest
+    pull_policy: always
+    environment:
+      DELIVERY_DB_URL: sqlite:///./data/delivery.db
+    volumes: ["delivery-data:/app/data"]
+    restart: unless-stopped
+
+  openg2p-sync:
+    image: mishramesh/mysocial:openg2p-sync-latest
+    pull_policy: always
+    environment:
+      # Real OpenG2P's `odoo` service — reachable now that this service is
+      # also on social-registry-net, once deploy/openg2p/README.md's stack
+      # (or deploy-all-dpgs.sh openg2p) is up and joined to the same network.
+      OPENG2P_BASE_URL: http://odoo:8069
+      OPENG2P_SYNC_MODE: manual
+      OPENG2P_SYNC_CRON: "0 */6 * * *"
+    networks: [default, social-registry-net]
+    restart: unless-stopped
+
+  sunbird-adapter:
+    image: mishramesh/mysocial:sunbird-adapter-latest
+    pull_policy: always
+    environment:
+      # Real Sunbird RC's `registry` service — reachable once
+      # deploy/sunbird-rc/README.md's stack (or deploy-all-dpgs.sh
+      # sunbird-rc) is up and joined to social-registry-net.
+      SUNBIRD_RC_BASE_URL: http://registry:8091
+    networks: [default, social-registry-net]
+    restart: unless-stopped
+
+  digit-mock:
+    # Stand-in for real DIGIT's egov-workflow-v2 API — see services/digit-mock/README.md.
+    # Swap digit-adapter's DIGIT_BASE_URL below for a real DIGIT instance later; nothing else changes.
+    image: mishramesh/mysocial:digit-mock-latest
+    pull_policy: always
+    restart: unless-stopped
+
+  digit-adapter:
+    image: mishramesh/mysocial:digit-adapter-latest
+    pull_policy: always
+    environment:
+      DIGIT_BASE_URL: http://digit-mock:8083
+      DIGIT_TENANT_ID: pilot
+      DIGIT_BUSINESS_SERVICE: REGISTRY_VERIFICATION
+    depends_on:
+      - digit-mock
+    restart: unless-stopped
+
+  inji-adapter:
+    image: mishramesh/mysocial:inji-adapter-latest
+    pull_policy: always
+    environment:
+      # Real InjiStack container DNS names — reachable once
+      # deploy/inji/README.md's stack (or deploy-all-dpgs.sh inji) is up and
+      # joined to social-registry-net. See deploy/inji/README.md re:
+      # INJI_VERIFY_PATH still being an unconfirmed guess.
+      INJI_CERTIFY_BASE_URL: http://certify-nginx:80
+      INJI_VERIFY_BASE_URL: http://verify-service:8080
+      INJI_VERIFY_PATH: /v1/verify
+    networks: [default, social-registry-net]
+    restart: unless-stopped
+
+  api-gateway:
+    image: mishramesh/mysocial:api-gateway-latest
+    pull_policy: always
+    environment:
+      # Blank = no auth (fine here: api-gateway isn't published to the host at
+      # all in this file — only nginx's proxy inside the frontend container can
+      # reach it, over the internal compose network). Set a value via Docker
+      # Manager's environment-variables UI for defense-in-depth if you want it.
+      GATEWAY_API_KEY: ""
+      CONSENT_SERVICE_URL: http://consent-management:8001
+      CONNECTOR_SERVICE_URL: http://connector-config:8002
+      REGISTRY_SERVICE_URL: http://registry-intelligence:8003
+      DELIVERY_SERVICE_URL: http://delivery-intelligence:8004
+      OPENG2P_SYNC_SERVICE_URL: http://openg2p-sync:8005
+      SUNBIRD_ADAPTER_SERVICE_URL: http://sunbird-adapter:8006
+      DIGIT_ADAPTER_SERVICE_URL: http://digit-adapter:8007
+      INJI_ADAPTER_SERVICE_URL: http://inji-adapter:8008
+      DEMO_SEEDER_SERVICE_URL: http://demo-seeder:8009
+    depends_on:
+      - consent-management
+      - connector-config
+      - registry-intelligence
+      - delivery-intelligence
+      - openg2p-sync
+      - sunbird-adapter
+      - digit-adapter
+      - inji-adapter
+    restart: unless-stopped
+
+  demo-seeder:
+    # Powers the frontend's "Seed Demo Data" button — populates this instance
+    # with the synthetic POC story (scripts/seed_demo.py) via api-gateway's own
+    # APIs. Not published to the host; only reachable via api-gateway/frontend.
+    image: mishramesh/mysocial:demo-seeder-latest
+    pull_policy: always
+    environment:
+      API_BASE_URL: http://api-gateway:8000
+      GATEWAY_API_KEY: ""
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  frontend:
+    image: mishramesh/mysocial:frontend-latest
+    pull_policy: always
+    ports: ["6561:80"]
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+volumes:
+  consent-data:
+  connector-data:
+  registry-data:
+  delivery-data:
+
+networks:
+  default: {}
+  social-registry-net:
+    external: true

@@ -41,7 +41,11 @@ def digit_mock_server():
 
 
 def test_health():
-    assert client.get("/health").json()["status"] == "ok"
+    body = client.get("/health").json()
+    assert body["status"] == "ok"
+    # digit_mock_server (module fixture) is already up by this point, so the
+    # adapter should honestly report the downstream DPG as reachable.
+    assert body["downstream"]["reachable"] is True
 
 
 def test_status_for_unknown_case_is_404():
@@ -62,3 +66,8 @@ def test_route_case_and_check_status_against_real_digit_mock():
     status = client.get("/verification-cases/case-1/status").json()
     assert status["status"] == "routed"
     assert status["digit_state"] == "PENDING_ASSIGNMENT"
+
+
+def test_list_routings_includes_routed_case():
+    case_ids = [r["verification_case_id"] for r in client.get("/verification-cases").json()]
+    assert "case-1" in case_ids

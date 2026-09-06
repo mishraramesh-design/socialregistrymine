@@ -140,4 +140,23 @@ def verify_credential(payload: VerifyCredentialRequest):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "inji-adapter"}
+    """See sunbird-adapter's health handler for why this probes the
+    downstream DPGs rather than just reporting this service's own liveness.
+    Two targets here since Inji Certify and Inji Verify are separate
+    services that can each be up or down independently."""
+    def _reachable(url: str) -> bool:
+        try:
+            with httpx.Client(timeout=2.0) as client:
+                client.get(url)
+            return True
+        except httpx.HTTPError:
+            return False
+
+    return {
+        "status": "ok",
+        "service": "inji-adapter",
+        "downstream": {
+            "certify": {"name": "Inji Certify", "reachable": _reachable(INJI_CERTIFY_BASE_URL)},
+            "verify": {"name": "Inji Verify", "reachable": _reachable(INJI_VERIFY_BASE_URL)},
+        },
+    }

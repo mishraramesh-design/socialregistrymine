@@ -7,6 +7,8 @@ import DoubtRegistry from "./pages/DoubtRegistry";
 import Consent from "./pages/Consent";
 import Delivery from "./pages/Delivery";
 import OpenG2PSync from "./pages/OpenG2PSync";
+import AuditTrail from "./pages/AuditTrail";
+import SystemMap from "./pages/SystemMap";
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
           <Route path="/consent" element={<Consent />} />
           <Route path="/delivery" element={<Delivery />} />
           <Route path="/openg2p-sync" element={<OpenG2PSync />} />
+          <Route path="/audit-trail" element={<AuditTrail />} />
+          <Route path="/system-map" element={<SystemMap />} />
         </Routes>
       </main>
     </div>
