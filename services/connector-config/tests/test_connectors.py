@@ -184,3 +184,43 @@ def test_scheduled_batch_requires_cron():
         },
     )
     assert resp.status_code == 422
+
+
+def test_add_missing_columns_patches_a_pre_existing_table_without_losing_rows():
+    """Regression test for a real production incident: a long-lived SQLite
+    volume from before golden_count/doubt_count/failed_count/error were added
+    to IngestionRun had none of those columns, so the first write to any of
+    them 500'd. create_all() alone can't fix this — it only creates tables
+    that don't exist, never alters ones that do."""
+    from app.database import add_missing_columns
+
+    with engine.connect() as conn:
+        conn.exec_driver_sql("DROP TABLE IF EXISTS ingestion_runs")
+        conn.exec_driver_sql(
+            """
+            CREATE TABLE ingestion_runs (
+                id VARCHAR NOT NULL PRIMARY KEY,
+                connector_id VARCHAR NOT NULL,
+                triggered_by VARCHAR NOT NULL,
+                status VARCHAR NOT NULL,
+                records_seen INTEGER NOT NULL,
+                started_at DATETIME,
+                completed_at DATETIME
+            )
+            """
+        )
+        conn.exec_driver_sql(
+            "INSERT INTO ingestion_runs VALUES ('r1', 'c1', 'test', 'completed', 5, NULL, NULL)"
+        )
+        conn.commit()
+
+    add_missing_columns()
+
+    with engine.connect() as conn:
+        columns = {row[1] for row in conn.exec_driver_sql('PRAGMA table_info("ingestion_runs")')}
+        assert {"golden_count", "doubt_count", "failed_count", "error"} <= columns
+
+        row = conn.exec_driver_sql(
+            "SELECT id, golden_count, doubt_count, failed_count, error FROM ingestion_runs WHERE id = 'r1'"
+        ).fetchone()
+        assert row == ("r1", 0, 0, 0, None)

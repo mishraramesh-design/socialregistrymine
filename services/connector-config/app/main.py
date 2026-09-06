@@ -28,7 +28,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from . import models
-from .database import Base, SessionLocal, engine, get_db
+from .database import Base, SessionLocal, add_missing_columns, engine, get_db
 from .schemas import (
     ConnectorCreate,
     ConnectorOut,
@@ -42,6 +42,7 @@ REGISTRY_SERVICE_URL = os.getenv("REGISTRY_SERVICE_URL", "http://registry-intell
 
 os.makedirs("./data", exist_ok=True)
 Base.metadata.create_all(bind=engine)
+add_missing_columns()
 
 app = FastAPI(
     title="Connector Config Service",
