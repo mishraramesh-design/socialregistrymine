@@ -24,6 +24,8 @@ services:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:digit-adapter-${TAG:-latest}
   inji-adapter:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:inji-adapter-${TAG:-latest}
+  demo-seeder:
+    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:demo-seeder-${TAG:-latest}
   api-gateway:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:api-gateway-${TAG:-latest}
   frontend:

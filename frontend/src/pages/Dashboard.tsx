@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { IdCard, ShieldQuestion, Plug, ScrollText, Activity } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { IdCard, ShieldQuestion, Plug, ScrollText, Activity, Sparkles, Loader2 } from "lucide-react";
 import Topbar from "../components/Topbar";
 import StatTile from "../components/StatTile";
 import Badge from "../components/Badge";
 import ApiErrorBanner from "../components/ApiErrorBanner";
-import { api, ApiError, Connector, DoubtRecord, GoldenRecord, ConsentRecord, GatewayHealth } from "../lib/api";
+import { api, ApiError, Connector, DoubtRecord, GoldenRecord, ConsentRecord, GatewayHealth, DemoSeedStatus } from "../lib/api";
 
 export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
@@ -13,8 +13,11 @@ export default function Dashboard() {
   const [doubt, setDoubt] = useState<DoubtRecord[]>([]);
   const [consents, setConsents] = useState<ConsentRecord[]>([]);
   const [health, setHealth] = useState<GatewayHealth | null>(null);
+  const [seed, setSeed] = useState<DemoSeedStatus | null>(null);
+  const [seedError, setSeedError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     Promise.all([
       api.get<Connector[]>("/api/connectors/connectors").catch(() => []),
       api.get<GoldenRecord[]>("/api/registry/golden-records").catch(() => []),
@@ -32,9 +35,64 @@ export default function Dashboard() {
       .catch((e: ApiError) => setError(e.message));
   }, []);
 
+  const pollSeedStatus = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(() => {
+      api
+        .get<DemoSeedStatus>("/api/demo/status")
+        .then((s) => {
+          setSeed(s);
+          if (s.status !== "running" && pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+            if (s.status === "completed") loadDashboard();
+          }
+        })
+        .catch(() => {
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        });
+    }, 1500);
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    loadDashboard();
+    api
+      .get<DemoSeedStatus>("/api/demo/status")
+      .then((s) => {
+        setSeed(s);
+        if (s.status === "running") pollSeedStatus();
+      })
+      .catch(() => {});
+  }, [loadDashboard, pollSeedStatus]);
+
+  useEffect(() => () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+  }, []);
+
+  const startSeeding = () => {
+    setSeedError(null);
+    api
+      .post<{ status: string; detail: string }>("/api/demo/seed")
+      .then(() => {
+        setSeed({ status: "running", log: [], story: [] });
+        pollSeedStatus();
+      })
+      .catch((e: ApiError) => {
+        if (e.status === 409) {
+          pollSeedStatus();
+        } else {
+          setSeedError(e.message);
+        }
+      });
+  };
+
   const openDoubts = doubt.filter((d) => d.status === "open").length;
   const activeConnectors = connectors.filter((c) => c.status === "active").length;
   const grantedConsents = consents.filter((c) => c.status === "granted").length;
+  const seedRunning = seed?.status === "running";
 
   return (
     <div>
@@ -73,6 +131,64 @@ export default function Dashboard() {
                   <Badge label={status.status} tone={status.status === "ok" ? "success" : "critical"} />
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card p-5">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <Sparkles size={16} className="text-accent-600" />
+                <h2 className="text-sm font-semibold text-ink-900">POC demo data</h2>
+              </div>
+              <p className="text-sm text-zinc-500">
+                One click seeds three fake Delhi source connectors, ~20 synthetic residents with deliberate
+                cross-source duplicates and identity conflicts, the Delhi Senior Citizen Pension scheme, and both
+                Doubt Registry resolution paths — the same story as <code>scripts/seed_demo.py</code>.
+              </p>
+            </div>
+            <button
+              onClick={startSeeding}
+              disabled={seedRunning}
+              className="flex shrink-0 items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-ink-900/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {seedRunning ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              {seedRunning ? "Seeding…" : "Seed Demo Data"}
+            </button>
+          </div>
+
+          {seedError && <ApiErrorBanner message={seedError} />}
+
+          {seed && seed.status !== "idle" && (
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge
+                  label={seed.status}
+                  tone={seed.status === "completed" ? "success" : seed.status === "failed" ? "critical" : "info"}
+                />
+                {seed.status === "failed" && seed.error && <span className="text-xs text-red-600">{seed.error}</span>}
+              </div>
+
+              {seed.log.length > 0 && (
+                <pre className="max-h-56 overflow-y-auto rounded-lg bg-zinc-900 p-3 text-xs leading-relaxed text-zinc-100">
+                  {seed.log.join("\n")}
+                </pre>
+              )}
+
+              {seed.status === "completed" && seed.story.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Demo story</h3>
+                  <ul className="divide-y divide-zinc-100 text-sm">
+                    {seed.story.map((s, i) => (
+                      <li key={i} className="flex items-center justify-between gap-4 py-1.5">
+                        <span className="text-zinc-700">{s.name}</span>
+                        <span className="text-right text-xs text-zinc-500">{s.outcome}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,5 +1,11 @@
 # scripts/
 
+**Prefer not to use a terminal?** The exact same story is one click away in the
+frontend itself — open the Dashboard and hit **Seed Demo Data**. That button calls
+`services/demo-seeder/`, a small service that runs this same logic server-side
+through `api-gateway`'s own APIs. This CLI script is still useful for automation
+or when you want the log printed to your own terminal instead of the browser.
+
 ## seed_demo.py
 
 Seeds a complete, narratable POC story through the platform's real APIs (no

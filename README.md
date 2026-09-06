@@ -38,6 +38,7 @@ The platform does **not** reimplement identity, credentialing, or payment infras
 |---|---|
 | `consent-management` | DPDP Act–aligned consent capture, purpose limitation, revocation, and audit trail for every data-sharing action between a source system, the registry, and delivery. |
 | `api-gateway` | Single entry point routing `/api/<service>/*` to each backend microservice; where the frontend and any external caller connect. Optional shared-secret auth (`GATEWAY_API_KEY`) for machine-to-machine callers — see `services/api-gateway/README.md` for why that's not yet suitable for the frontend itself. |
+| `demo-seeder` | Runs the synthetic POC story (`scripts/seed_demo.py`'s logic) server-side through `api-gateway`'s own APIs, triggered by the frontend's **Seed Demo Data** button — one click instead of shell access. |
 | `frontend` | Configuration console — the operator-facing UI for connectors, registry/doubt-registry review, consent, delivery rules, and OpenG2P sync triggers. |
 
 ## Architecture
@@ -105,12 +106,15 @@ socialregistrymine/
 │   ├── sunbird-adapter/        # adapter to a separately-deployed Sunbird RC
 │   ├── digit-adapter/          # adapter to a separately-deployed DIGIT (workflow/verification)
 │   ├── inji-adapter/           # adapter to a separately-deployed Inji (credentials)
+│   ├── demo-seeder/            # runs the POC seed story server-side, for the portal's one-click demo
 │   └── api-gateway/            # routing layer, optional shared-secret auth
 ├── frontend/                   # React + TypeScript + Tailwind config console
+├── scripts/                    # seed_demo.py — the standalone CLI version of the same POC story
 ├── docs/
 │   └── architecture.md
 ├── .github/workflows/          # CI: builds & pushes every image to Docker Hub on push to main
-└── deploy/                     # real Sunbird RC + OpenG2P wiring, Docker Hub, Hostinger runbook
+└── deploy/                     # real Sunbird RC + OpenG2P + Inji wiring, Docker Hub, Hostinger runbook,
+                                 #   deploy-all-dpgs.sh (one-shot automation)
 ```
 
 Every service exposes a real, runnable FastAPI app with a documented API contract (`/docs`).
@@ -168,19 +172,26 @@ real services multiple times while building it, which is how two genuine matchin
 got caught and fixed: missing fields were scoring as "actively different" rather than
 "no signal" (see `NEUTRAL` in `app/matching/features.py`), and a single exact-ID match
 was trusted even when the name flatly contradicted it (see `AUTO_MERGE_CONFIDENCE` in
-`registry-intelligence/app/main.py`).
+`registry-intelligence/app/main.py`). The same story is also one click away in the
+console: the Dashboard's **Seed Demo Data** button runs the identical logic server-side
+(`services/demo-seeder/`), through `api-gateway`'s own APIs, so a demo can be seeded
+without shell access to the host — verified end to end the same way as the CLI script
+(re-ran it fresh after finding and fixing a test-only wiring mistake, confirming the
+full merge/exclusion/doubt-resolution/DIGIT-routing story completes correctly through
+the button's exact code path).
 
 **Real but unverified against a live instance**: the Sunbird RC, OpenG2P, and Inji
-adapters are wired against each DPG's actual documented API shape (not guessed), but
-none has been exercised against a real running instance yet — that's the next step,
-per `deploy/`. Specific known gaps to close once real instances exist:
-`openg2p-sync`'s beneficiary payload shape depends on which OpenG2P module you install;
-`inji-adapter`'s `INJI_VERIFY_PATH` is an unconfirmed guess. DIGIT itself isn't
-deployed for this POC at all — it's Kubernetes/Helm-first with no lightweight
-compose demo — `digit-adapter` currently points at `digit-mock`
-(`services/digit-mock/`), a small stand-in implementing the same API shape, so the
-verification-routing story still works end to end; swapping in a real cluster later
-needs no adapter changes.
+adapters are wired against each DPG's actual documented API shape (not guessed), and
+`deploy/deploy-all-dpgs.sh` automates cloning and bringing up all three real DPGs
+(joined to the shared network, per `deploy/`) — but none has actually been run yet:
+that needs a real Docker host (your VPS), which this development environment doesn't
+have. Specific known gaps to close once real instances exist: `openg2p-sync`'s
+beneficiary payload shape depends on which OpenG2P module you install; `inji-adapter`'s
+`INJI_VERIFY_PATH` is an unconfirmed guess. DIGIT itself isn't deployed for this POC at
+all — it's Kubernetes/Helm-first with no lightweight compose demo — `digit-adapter`
+currently points at `digit-mock` (`services/digit-mock/`), a small stand-in
+implementing the same API shape, so the verification-routing story still works end to
+end; swapping in a real cluster later needs no adapter changes.
 
 **Not started**: the per-client fine-tuning loop described in `docs/architecture.md`
 (the base ML model above is trained on synthetic data only — no deployment's real

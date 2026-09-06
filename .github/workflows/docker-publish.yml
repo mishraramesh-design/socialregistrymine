@@ -33,6 +33,8 @@ jobs:
             context: services/digit-adapter
           - name: inji-adapter
             context: services/inji-adapter
+          - name: demo-seeder
+            context: services/demo-seeder
           - name: api-gateway
             context: services/api-gateway
           - name: frontend

@@ -76,6 +76,13 @@ services:
       - digit-adapter
       - inji-adapter
 
+  demo-seeder:
+    build: ./services/demo-seeder
+    ports: ["8009:8009"]
+    env_file: .env
+    depends_on:
+      - api-gateway
+
   frontend:
     build: ./frontend
     ports: ["5173:80"]

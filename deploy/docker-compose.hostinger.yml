@@ -111,6 +111,7 @@ services:
       SUNBIRD_ADAPTER_SERVICE_URL: http://sunbird-adapter:8006
       DIGIT_ADAPTER_SERVICE_URL: http://digit-adapter:8007
       INJI_ADAPTER_SERVICE_URL: http://inji-adapter:8008
+      DEMO_SEEDER_SERVICE_URL: http://demo-seeder:8009
     depends_on:
       - consent-management
       - connector-config
@@ -120,6 +121,18 @@ services:
       - sunbird-adapter
       - digit-adapter
       - inji-adapter
+    restart: unless-stopped
+
+  demo-seeder:
+    # Powers the frontend's "Seed Demo Data" button — populates this instance
+    # with the synthetic POC story (scripts/seed_demo.py) via api-gateway's own
+    # APIs. Not published to the host; only reachable via api-gateway/frontend.
+    image: mishramesh/mysocial:demo-seeder-latest
+    environment:
+      API_BASE_URL: http://api-gateway:8000
+      GATEWAY_API_KEY: ""
+    depends_on:
+      - api-gateway
     restart: unless-stopped
 
   frontend:

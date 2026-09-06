@@ -25,6 +25,8 @@ upgradable from its own upstream.
 ```
 deploy/
 ├── README.md                        # this file — the master runbook
+├── deploy-all-dpgs.sh                # one-shot automation of the clone+join-network+up steps
+│                                     #   below for all three real DPGs — run on your VPS
 ├── docker-compose.hostinger.yml     # ready-to-paste file for Hostinger Docker Manager's
 │                                     #   "Compose from URL" — pulls images, one public port (6561)
 ├── docker-compose.images.yml        # override for the manual path: run OUR platform from
@@ -91,6 +93,23 @@ Create this once per host, before bringing anything up.
    names — `http://registry:8091`, `http://odoo:8069`, `http://certify-nginx:80`,
    `http://verify-service:8080`, `http://digit-mock:8083` — see the root
    `.env.example`.
+
+Steps 1–4 are automated by `deploy/deploy-all-dpgs.sh` — run it **on your VPS**
+(it needs a real Docker daemon and clones each DPG's own multi-gigabyte repo,
+neither of which this development environment has):
+
+```bash
+./deploy/deploy-all-dpgs.sh              # all three
+./deploy/deploy-all-dpgs.sh sunbird-rc   # or just one
+```
+
+It clones each DPG next to this repo, copies in the network-attachment
+override, and brings each stack up — but deliberately stops short of editing
+secrets for you (it fetches each DPG's default `.env`/config with a loud
+warning to change the passwords before exposing anything publicly) and stops
+short of the one-time manual steps below (Sunbird RC schema registration,
+confirming Inji Verify's path, wiring OpenG2P's beneficiary payload shape) —
+see each DPG's own `README.md` for those.
 
 ## Verifying the wiring end to end
 

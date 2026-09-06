@@ -37,6 +37,7 @@ SERVICES=(
   "digit-mock"
   "digit-adapter"
   "inji-adapter"
+  "demo-seeder"
   "api-gateway"
 )
 

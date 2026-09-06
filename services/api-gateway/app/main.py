@@ -29,6 +29,7 @@ SERVICE_ROUTES = {
     "sunbird": os.getenv("SUNBIRD_ADAPTER_SERVICE_URL", "http://sunbird-adapter:8006"),
     "digit": os.getenv("DIGIT_ADAPTER_SERVICE_URL", "http://digit-adapter:8007"),
     "inji": os.getenv("INJI_ADAPTER_SERVICE_URL", "http://inji-adapter:8008"),
+    "demo": os.getenv("DEMO_SEEDER_SERVICE_URL", "http://demo-seeder:8009"),
 }
 
 

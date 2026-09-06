@@ -118,6 +118,15 @@ export interface SchemeRule {
   exclusion_conditions: { field: string; op: string; value: number }[];
 }
 
+export interface DemoSeedStatus {
+  status: "idle" | "running" | "completed" | "failed";
+  started_at?: string;
+  finished_at?: string;
+  log: string[];
+  story: { name: string; outcome: string }[];
+  error?: string;
+}
+
 export interface SyncRun {
   id: string;
   trigger_type: string;
