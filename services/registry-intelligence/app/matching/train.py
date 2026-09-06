@@ -60,6 +60,21 @@ def _reformat_address(address: str, rng: random.Random) -> str:
     return ",".join(t.strip() for t in tokens)
 
 
+def _drop_fields_a_real_source_might_lack(record: dict, rng: random.Random) -> dict:
+    """A source system frequently doesn't collect every canonical field — an
+    income-tax record rarely carries a home address, some land records predate
+    DOB capture. The model has to recognize a match on name+DOB alone when the
+    other side never supplied an address at all — not seeing this pattern in
+    training was a real bug (missing fields scored as "actively different"
+    rather than "no signal"; see features.py's NEUTRAL constant)."""
+    record = dict(record)
+    if rng.random() < 0.25:
+        record["address"] = ""
+    if rng.random() < 0.08:
+        record["date_of_birth"] = ""
+    return record
+
+
 def _generate_identity(fake: Faker) -> dict:
     return {
         "name": fake.name(),
@@ -85,6 +100,7 @@ def generate_dataset(n_pairs: int = 2500, seed: int = 42):
             else identity["date_of_birth"][:7] + "-01",  # rare day-transcription slip
             "address": _reformat_address(identity["address"], rng),
         }
+        duplicate = _drop_fields_a_real_source_might_lack(duplicate, rng)
         X.append(feature_vector(identity, duplicate))
         y.append(1)
 

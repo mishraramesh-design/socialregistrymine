@@ -34,6 +34,7 @@ SERVICES=(
   "delivery-intelligence"
   "openg2p-sync"
   "sunbird-adapter"
+  "digit-mock"
   "digit-adapter"
   "inji-adapter"
   "api-gateway"

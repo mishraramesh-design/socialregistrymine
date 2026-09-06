@@ -1,14 +1,15 @@
 # Real-DPG Pilot Deployment
 
 This directory wires our own platform (`services/`, `frontend/`) together with **real,
-separately-deployed** instances of Sunbird RC and OpenG2P, running as their own
-Docker containers on a shared Docker network — not mocked, not forked.
+separately-deployed** instances of Sunbird RC, OpenG2P, and Inji, running as their own
+Docker containers on a shared Docker network — not mocked, not forked. DIGIT is the
+one exception — see below.
 
-Neither DPG's source is vendored into this repo. You clone each DPG's own official
-repository next to (not inside) `socialregistrymine`, run *their* compose files
-unmodified, and use a small network-attachment override (provided here) to join them
-to a shared network our platform also joins. This keeps both DPGs independently
-upgradable from their own upstreams.
+None of these DPGs' source is vendored into this repo. You clone each one's own
+official repository next to (not inside) `socialregistrymine`, run *their* compose
+files unmodified, and use a small network-attachment override (provided here) to join
+them to a shared network our platform also joins. This keeps each DPG independently
+upgradable from its own upstream.
 
 ## Status of each DPG (checked directly against upstream, September 2026)
 
@@ -16,6 +17,8 @@ upgradable from their own upstreams.
 |---|---|---|
 | **Sunbird RC** | [Sunbird-RC/sunbird-rc-core](https://github.com/Sunbird-RC/sunbird-rc-core) | Actively maintained. Official `docker-compose.yml`, ~23 services. |
 | **OpenG2P** | [OpenG2P/openg2p-erp-docker](https://github.com/OpenG2P/openg2p-erp-docker) | **Archived (read-only) July 2026.** OpenG2P's current supported path is Kubernetes/Helm (`openg2p-helm`). This repo still runs (Odoo v14-based) but gets no further updates or security patches — deliberately used here as the simple pilot option per your call; revisit before this becomes a production dependency. |
+| **Inji** (Certify + Verify) | [mosip/inji-certify](https://github.com/mosip/inji-certify) | Actively maintained. Official docker-compose demo stack (`docker-compose-injistack`), 5 services + an optional 6th (Verify, ships commented out). |
+| **DIGIT** | [DIGIT-OSS](https://github.com/orgs/egovernments/repositories) | **Not deployed for this POC.** DIGIT's production path is Kubernetes/Helm with no equivalent lightweight docker-compose demo — a materially bigger lift than the other three. Per your call, `digit-mock` (in this repo, `services/digit-mock/`) stands in: it implements the exact `egov-workflow-v2` API `digit-adapter` calls, so the verification-routing story still demos end-to-end. Swap `DIGIT_BASE_URL` for a real cluster later — nothing else changes. |
 
 ## Directory layout
 
@@ -32,13 +35,16 @@ deploy/
 ├── openg2p/
 │   ├── README.md                    # clone + configure + join-network steps
 │   └── docker-compose.network.yml   # override: attaches odoo to the shared network
+├── inji/
+│   ├── README.md                    # clone + configure + join-network steps
+│   └── docker-compose.network.yml   # override: attaches certify-nginx + re-adds verify-service
 ├── docker-hub.md                    # build & push OUR OWN service images (not the DPGs)
 └── hostinger-vps.md                 # VPS sizing, provisioning, bring-up order, verification
 ```
 
 ## Quickest path: Hostinger Docker Manager
 
-If you just want this platform's own 9 services + frontend running on your Hostinger
+If you just want this platform's own 10 services + frontend running on your Hostinger
 VPS, pulling pre-built images — `deploy/docker-compose.hostinger.yml` is self-contained
 (no external network, no prerequisite commands, nothing to build):
 
@@ -54,13 +60,16 @@ VPS, pulling pre-built images — `deploy/docker-compose.hostinger.yml` is self-
    container) serves the config console and reverse-proxies `/api/*` to `api-gateway`
    internally, so one port is all you need. Nothing else is published to the internet.
 
-This does **not** include Sunbird RC, OpenG2P, DIGIT, or Inji — those stay separate
-deployments per the sections below. Without them running, the adapters just report
-"unreachable," which is expected until you bring a given DPG up.
+This does **not** include Sunbird RC, OpenG2P, or Inji — those stay separate
+deployments per the sections below. Without them running, `sunbird-adapter`,
+`openg2p-sync`, and `inji-adapter` just report "unreachable," which is expected
+until you bring a given DPG up. `digit-adapter` is the exception: it's already
+wired to `digit-mock` (bundled, no separate deployment), so the
+verification-routing story works out of the box even in this quick path.
 
 ## The shared network
 
-Everything — our platform's containers and both DPGs' containers — joins one external
+Everything — our platform's containers and each DPG's containers — joins one external
 Docker network so services can resolve each other by container name.
 
 ```bash
@@ -74,24 +83,36 @@ Create this once per host, before bringing anything up.
 1. `docker network create social-registry-net` (once)
 2. Sunbird RC — see `sunbird-rc/README.md`
 3. OpenG2P — see `openg2p/README.md`
-4. Our own platform — from the repo root: `docker compose up --build -d` (its
-   `docker-compose.yml` already joins `social-registry-net` and points
-   `sunbird-adapter`/`openg2p-sync` at the real container DNS names —
-   `http://registry:8091` and `http://odoo:8069` respectively; see the root
-   `.env.example`)
+4. Inji — see `inji/README.md` (creates its own additional `mosip_network` too)
+5. Our own platform (this includes `digit-mock`, standing in for DIGIT — no
+   separate deployment needed for it) — from the repo root:
+   `docker compose up --build -d`. Its `docker-compose.yml` already joins
+   `social-registry-net` and points every adapter at the real container DNS
+   names — `http://registry:8091`, `http://odoo:8069`, `http://certify-nginx:80`,
+   `http://verify-service:8080`, `http://digit-mock:8083` — see the root
+   `.env.example`.
 
 ## Verifying the wiring end to end
 
 ```bash
 # From inside our api-gateway container (or docker exec into it):
-curl http://registry:8091/health           # Sunbird RC registry service reachable
-curl http://odoo:8069/web/login            # OpenG2P/Odoo reachable
+curl http://registry:8091/health                                    # Sunbird RC
+curl http://odoo:8069/web/login                                      # OpenG2P/Odoo
+curl http://certify-nginx:80/.well-known/openid-credential-issuer    # Inji Certify
+curl http://verify-service:8080/health                               # Inji Verify (path unconfirmed — see inji/README.md)
 
 # From your own machine, through our gateway:
 curl http://<host>:8000/api/sunbird/health
 curl http://<host>:8000/api/openg2p-sync/sync/schedule
+curl http://<host>:8000/api/inji/health
+curl http://<host>:8000/api/digit/health
 ```
 
 A golden record pushed via `POST /api/registry/golden-records/{id}` followed by
 `POST /api/sunbird/golden-records/{id}/push` should now actually create an entity in
-Sunbird RC's registry — check `docker logs registry` if it doesn't.
+Sunbird RC's registry — check `docker logs registry` if it doesn't. A verification
+case routed via `POST /api/digit/verification-cases/{id}/route`, checked again a
+little later via `GET /api/digit/verification-cases/{id}/status`, should show
+`digit_state` progress from `PENDING_ASSIGNMENT` toward `VERIFIED` (that's
+`digit-mock`'s illustrative timeline, not a real workflow — see
+`services/digit-mock/README.md`).

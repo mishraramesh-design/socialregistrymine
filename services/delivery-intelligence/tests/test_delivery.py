@@ -8,6 +8,7 @@ os.environ["DELIVERY_DB_URL"] = "sqlite:///./data/test_delivery.db"
 import pytest
 from fastapi.testclient import TestClient
 
+from app.database import Base, engine
 from app.main import app
 
 client = TestClient(app)
@@ -15,10 +16,11 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    # Recreate tables via the same engine/pool rather than deleting the SQLite
+    # file out from under it — see registry-intelligence/tests for why.
     yield
-    db_path = "./data/test_delivery.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 
 def test_health():

@@ -14,6 +14,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.database import Base, engine
 from app.main import app
 
 client = TestClient(app)
@@ -53,11 +54,12 @@ def fake_registry_server():
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    # Recreate tables via the same engine/pool rather than deleting the SQLite
+    # file out from under it — see registry-intelligence/tests for why.
     received_calls.clear()
     yield
-    db_path = "./data/test_connectors.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 
 def _wait_for_run_completion(connector_id: str, timeout: float = 5.0) -> dict:

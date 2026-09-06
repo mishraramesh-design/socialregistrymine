@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from . import models
 from .database import Base, engine, get_db
+from .matching.features import name_similarity
 from .matching.model import score_pair
 from .schemas import (
     ClassificationLevel,
@@ -46,6 +47,21 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 HARD_IDENTIFIER_FIELDS = ["aadhaar", "national_id", "ration_id"]
 
+# A candidate only auto-merges when its score clears this bar. An exact hard-ID
+# match is NOT automatically 1.0: two different people can share one identifier
+# through a data-entry error, and that must surface as a doubt record for human
+# review, not silently merge two different citizens into one golden record.
+AUTO_MERGE_CONFIDENCE = 0.9
+
+
+def _id_match_confidence(new_attrs: Dict[str, str], existing_attrs: Dict[str, str], field: str) -> tuple:
+    """Scores an exact hard-identifier match, discounted if the name flatly
+    contradicts it — corroboration, not blind trust in the identifier alone."""
+    corroboration = name_similarity(new_attrs.get("name", ""), existing_attrs.get("name", ""))
+    if not new_attrs.get("name") or not existing_attrs.get("name") or corroboration >= 0.5:
+        return 1.0, f"exact match on {field}"
+    return 0.5, f"exact match on {field}, but name differs significantly ({corroboration:.2f} similarity) — possible data error, needs review"
+
 
 def match_record(db: Session, attributes: Dict[str, str]) -> List[MatchCandidate]:
     """Deterministic hard-identifier matching first, then ML scoring (see
@@ -64,13 +80,15 @@ def match_record(db: Session, attributes: Dict[str, str]) -> List[MatchCandidate
     for record in golden_records:
         for field, value in id_fields.items():
             if record.attributes.get(field) == value:
-                candidates.append(MatchCandidate(golden_record_id=record.id, score=1.0, evidence=f"exact match on {field}"))
+                score, evidence = _id_match_confidence(attributes, record.attributes, field)
+                candidates.append(MatchCandidate(golden_record_id=record.id, score=score, evidence=evidence))
                 matched_golden_ids.add(record.id)
                 break
     for record in doubt_records:
         for field, value in id_fields.items():
             if record.attributes.get(field) == value:
-                candidates.append(MatchCandidate(doubt_record_id=record.id, score=1.0, evidence=f"exact match on {field}"))
+                score, evidence = _id_match_confidence(attributes, record.attributes, field)
+                candidates.append(MatchCandidate(doubt_record_id=record.id, score=score, evidence=evidence))
                 matched_doubt_ids.add(record.id)
                 break
 
@@ -96,7 +114,11 @@ def match_record(db: Session, attributes: Dict[str, str]) -> List[MatchCandidate
 
 def classify(attributes: Dict[str, str], candidates: List[MatchCandidate]) -> ClassificationLevel:
     is_complete = all(attributes.get(f) for f in ["name", "date_of_birth", "address"])
-    is_unique = len(candidates) <= 1
+    # Zero candidates -> unique (nothing to conflict with). One candidate -> unique
+    # ONLY if it's confident enough to auto-merge; a single low-confidence
+    # candidate (e.g. an ID match contradicted by name) is still an unresolved
+    # conflict, not a clean match, and must go to doubt like 2+ candidates would.
+    is_unique = len(candidates) == 0 or (len(candidates) == 1 and candidates[0].score >= AUTO_MERGE_CONFIDENCE)
     if is_unique and is_complete:
         return ClassificationLevel.UNIQUE_COMPLETE
     if is_unique and not is_complete:

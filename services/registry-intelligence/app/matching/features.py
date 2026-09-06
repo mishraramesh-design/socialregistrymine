@@ -36,9 +36,16 @@ def name_phonetic_match(a: str, b: str) -> float:
         return 0.0
 
 
+NEUTRAL = 0.5  # "no signal either way" — NOT the same as 0.0 ("actively different").
+# A source that simply doesn't collect a field (income-tax records rarely carry a
+# home address, for instance) must not read as evidence AGAINST a match — treating
+# absence as 0.0 was a real bug: two records for the same person merged from two
+# sources, one of which had no address, scored as if the addresses conflicted.
+
+
 def dob_similarity(a: str, b: str) -> float:
     if not a or not b:
-        return 0.0
+        return NEUTRAL
     if a == b:
         return 1.0
     # Same year+month (e.g. day transposed/misrecorded across source systems) counts partial.
@@ -50,7 +57,7 @@ def dob_similarity(a: str, b: str) -> float:
 
 def address_similarity(a: str, b: str) -> float:
     if not a or not b:
-        return 0.0
+        return NEUTRAL
     return fuzz.token_sort_ratio(a, b) / 100.0
 
 

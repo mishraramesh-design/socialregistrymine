@@ -9,6 +9,7 @@ os.environ["MATCH_CONFIDENCE_THRESHOLD"] = "0.85"
 import pytest
 from fastapi.testclient import TestClient
 
+from app.database import Base, engine
 from app.main import app
 
 client = TestClient(app)
@@ -16,10 +17,13 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def clean_db():
+    # Recreate tables via the same engine/connection pool rather than deleting
+    # the SQLite file out from under it — deleting a live file while pooled
+    # connections stay open can leave a connection pointing at a stale file
+    # handle, corrupting state across tests in hard-to-reproduce ways.
     yield
-    db_path = "./data/test_registry.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 
 def test_health():

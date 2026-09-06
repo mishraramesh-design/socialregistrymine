@@ -148,7 +148,7 @@ containers; budget accordingly, see `deploy/hostinger-vps.md`).
 
 ## Status
 
-**Done and tested**: architecture, all 9 services, the frontend, persistent storage
+**Done and tested**: architecture, all 10 services, the frontend, persistent storage
 for the four data-owning services, a trained ML entity-resolution model (deterministic
 hard-ID matching + a logistic-regression model on name/DOB/address similarity —
 `services/registry-intelligence/app/matching/`, retrained at Docker build time from
@@ -160,14 +160,27 @@ connector's schema and ingests them, verified against a live registry-intelligen
 including a fuzzy-duplicate re-run correctly merging rather than duplicating.
 Deployed and live on a Hostinger VPS via `deploy/docker-compose.hostinger.yml`.
 
-**Real but unverified against a live instance**: the Sunbird RC, OpenG2P, DIGIT, and
-Inji adapters are wired against each DPG's actual documented API shape (not guessed),
-but none has been exercised against a real running instance yet — that happens at
-your VPS deployment (see `deploy/`). Specific known gaps to close once real instances
-exist: `openg2p-sync`'s beneficiary payload shape depends on which OpenG2P module you
-install; `inji-adapter`'s `INJI_VERIFY_PATH` is an unconfirmed guess; DIGIT's
-`BusinessService` (`REGISTRY_VERIFICATION`) must be created on your DIGIT instance
-before `digit-adapter` can route a case.
+**A full synthetic POC demo exists and is verified**: `scripts/seed_demo.py` seeds three
+fake Delhi source databases, ~20 synthetic residents with deliberate cross-source
+duplicates and identity conflicts, a real scheme, and both Doubt Registry resolution
+paths (human review, and routing to DIGIT for verification) — run end to end against
+real services multiple times while building it, which is how two genuine matching bugs
+got caught and fixed: missing fields were scoring as "actively different" rather than
+"no signal" (see `NEUTRAL` in `app/matching/features.py`), and a single exact-ID match
+was trusted even when the name flatly contradicted it (see `AUTO_MERGE_CONFIDENCE` in
+`registry-intelligence/app/main.py`).
+
+**Real but unverified against a live instance**: the Sunbird RC, OpenG2P, and Inji
+adapters are wired against each DPG's actual documented API shape (not guessed), but
+none has been exercised against a real running instance yet — that's the next step,
+per `deploy/`. Specific known gaps to close once real instances exist:
+`openg2p-sync`'s beneficiary payload shape depends on which OpenG2P module you install;
+`inji-adapter`'s `INJI_VERIFY_PATH` is an unconfirmed guess. DIGIT itself isn't
+deployed for this POC at all — it's Kubernetes/Helm-first with no lightweight
+compose demo — `digit-adapter` currently points at `digit-mock`
+(`services/digit-mock/`), a small stand-in implementing the same API shape, so the
+verification-routing story still works end to end; swapping in a real cluster later
+needs no adapter changes.
 
 **Not started**: the per-client fine-tuning loop described in `docs/architecture.md`
 (the base ML model above is trained on synthetic data only — no deployment's real

@@ -27,6 +27,8 @@ jobs:
             context: services/openg2p-sync
           - name: sunbird-adapter
             context: services/sunbird-adapter
+          - name: digit-mock
+            context: services/digit-mock
           - name: digit-adapter
             context: services/digit-adapter
           - name: inji-adapter

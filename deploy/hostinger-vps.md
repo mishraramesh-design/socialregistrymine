@@ -12,27 +12,36 @@
 
 | Tier | vCPU | RAM | Disk | Fits? |
 |---|---|---|---|---|
-| KVM 2 | 2 | 8 GB | 100 GB NVMe | No — below Sunbird RC's own stated 8 GB *floor*, before OpenG2P or our stack |
-| KVM 4 | 4 | 16 GB | 200 GB NVMe | Tight. Workable only if you trim optional Sunbird RC services (see below) and cap Elasticsearch's heap |
-| **KVM 8** | **8** | **32 GB** | **400 GB NVMe** | **Recommended** — comfortable headroom for all three stacks running together |
+| KVM 2 | 2 | 8 GB | 100 GB NVMe | No — below Sunbird RC's own stated 8 GB *floor*, before anything else |
+| KVM 4 | 4 | 16 GB | 200 GB NVMe | Tight. Workable only if you trim optional Sunbird RC services (see below), cap Elasticsearch's heap, and don't run all three DPGs at once |
+| **KVM 8** | **8** | **32 GB** | **400 GB NVMe** | **Recommended, but tight with all three DPGs live simultaneously** — see the selective-startup note below for a POC |
 
-Source: [Hostinger VPS Hosting](https://www.hostinger.com/vps-hosting).
+Source: [Hostinger VPS Hosting](https://www.hostinger.com/vps-hosting). Hostinger's
+plans top out at KVM 8 — there isn't a bigger single-VPS tier to size up to.
 
-Why KVM 8: Sunbird RC's own compose file runs ~23 containers (Elasticsearch, two
-Postgres-family databases across the three stacks, Keycloak, Vault, Kafka+Zookeeper,
-Redis, ClickHouse, MinIO, plus a dozen application microservices), OpenG2P adds an
-Odoo + Postgres + Traefik stack on top, and our own 9 services + frontend add modest
-but real overhead. None of these are individually heavy, but the *count* adds up in
-base memory (JVMs, Postgres connection pools, Elasticsearch's own overhead) well
-before any real traffic.
+Why this is heavy: Sunbird RC's own compose file runs ~23 containers (Elasticsearch,
+two Postgres-family databases across the three DPG stacks, Keycloak, Vault,
+Kafka+Zookeeper, Redis, ClickHouse, MinIO, plus a dozen application microservices).
+OpenG2P adds an Odoo + Postgres + Traefik stack. Inji's InjiStack adds two more JVM
+services (certify, mimoto-service) plus its own Postgres, nginx, and web UI. Our own
+10 services + frontend are individually light (Python/Node) but add real overhead
+too. None of this is heavy in isolation — it's the *count* that adds up in base
+memory well before any real traffic.
 
-**If you must run on KVM 4**: cap Elasticsearch's heap explicitly (Sunbird RC's
-default `docker-compose.yml` doesn't do this for you, and ES 6.x will otherwise grab
-much more than a 16 GB box can spare) — add `ES_JAVA_OPTS=-Xms1g -Xmx1g` to the `es`
-service's environment before bringing it up — and consider disabling services your
-pilot doesn't need yet (`bulk_issuance`, `digilocker-certificate-api`, `clickhouse`,
-`metrics` are reasonable to defer). Don't run OpenG2P and the full Sunbird RC stack
-simultaneously on KVM 4 without doing this.
+**For a POC specifically, you likely don't need all three DPGs running at once.**
+Start only what that moment of the demo needs — Sunbird RC + our platform for the
+registry story, Inji for the credentialing story, OpenG2P for disbursement — and
+`docker compose stop` (not `down`, to keep data) whichever stack you're not actively
+showing. `digit-mock` is negligible (one lightweight Python service) and can always
+stay up.
+
+**If you must run several DPGs at once on KVM 4 or a tight KVM 8**: cap
+Elasticsearch's heap explicitly (Sunbird RC's default `docker-compose.yml` doesn't do
+this for you, and ES 6.x will otherwise grab much more than the box can spare) — add
+`ES_JAVA_OPTS=-Xms1g -Xmx1g` to the `es` service's environment before bringing it up
+— and consider disabling Sunbird RC services your pilot doesn't need yet
+(`bulk_issuance`, `digilocker-certificate-api`, `clickhouse`, `metrics` are
+reasonable to defer).
 
 ## Provisioning
 

@@ -71,12 +71,20 @@ services:
       SUNBIRD_RC_BASE_URL: http://registry:8091
     restart: unless-stopped
 
+  digit-mock:
+    # Stand-in for real DIGIT's egov-workflow-v2 API — see services/digit-mock/README.md.
+    # Swap digit-adapter's DIGIT_BASE_URL below for a real DIGIT instance later; nothing else changes.
+    image: mishramesh/mysocial:digit-mock-latest
+    restart: unless-stopped
+
   digit-adapter:
     image: mishramesh/mysocial:digit-adapter-latest
     environment:
-      DIGIT_BASE_URL: http://localhost:8083
+      DIGIT_BASE_URL: http://digit-mock:8083
       DIGIT_TENANT_ID: pilot
       DIGIT_BUSINESS_SERVICE: REGISTRY_VERIFICATION
+    depends_on:
+      - digit-mock
     restart: unless-stopped
 
   inji-adapter:

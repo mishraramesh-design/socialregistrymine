@@ -18,6 +18,8 @@ services:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:openg2p-sync-${TAG:-latest}
   sunbird-adapter:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:sunbird-adapter-${TAG:-latest}
+  digit-mock:
+    image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:digit-mock-${TAG:-latest}
   digit-adapter:
     image: ${DOCKERHUB_USERNAME}/${DOCKERHUB_REPO:-mysocial}:digit-adapter-${TAG:-latest}
   inji-adapter:

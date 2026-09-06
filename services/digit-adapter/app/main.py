@@ -54,6 +54,7 @@ class RoutingRecord(BaseModel):
     verification_case_id: str
     digit_process_instance_id: Optional[str] = None
     status: RouteStatus
+    digit_state: Optional[str] = None
     error: Optional[str] = None
     routed_at: datetime
 
@@ -130,6 +131,10 @@ def get_case_status(case_id: str):
                     params={"tenantId": DIGIT_TENANT_ID, "businessIds": f"REG-{case_id}"},
                 )
                 resp.raise_for_status()
+                instances = resp.json().get("ProcessInstances", [])
+                if instances:
+                    record.digit_state = instances[0].get("state", {}).get("state")
+                    _routings[case_id] = record
         except httpx.HTTPError:
             pass  # keep the last-known routing record if DIGIT is unreachable right now
 

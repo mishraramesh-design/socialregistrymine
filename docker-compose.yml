@@ -39,10 +39,16 @@ services:
       - default
       - social-registry-net
 
+  digit-mock:
+    build: ./services/digit-mock
+    ports: ["8083:8083"]
+
   digit-adapter:
     build: ./services/digit-adapter
     ports: ["8007:8007"]
     env_file: .env
+    depends_on:
+      - digit-mock
     networks:
       - default
       - social-registry-net
@@ -66,6 +72,7 @@ services:
       - delivery-intelligence
       - openg2p-sync
       - sunbird-adapter
+      - digit-mock
       - digit-adapter
       - inji-adapter
 
