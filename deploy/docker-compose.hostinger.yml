@@ -20,10 +20,18 @@
 # To pin a specific version instead of `latest`: replace every `-latest` tag
 # below with `-<git-sha>` (see the Actions tab for the sha CI built), or with a
 # release tag if you've pushed one via deploy/build-and-push.sh <tag>.
+#
+# Every service sets `pull_policy: always` — without it, `docker compose up -d`
+# reuses whatever image is already cached locally for a `-latest` tag and does
+# NOT notice that Docker Hub's `-latest` now points somewhere new. This is why
+# redeploying with an unchanged compose file can otherwise show no changes at
+# all even after a fresh CI build: re-paste this file (or just redeploy it
+# unchanged) and Docker Manager's `up -d` will actually re-pull every image.
 
 services:
   consent-management:
     image: mishramesh/mysocial:consent-management-latest
+    pull_policy: always
     environment:
       CONSENT_DB_URL: sqlite:///./data/consent.db
     volumes: ["consent-data:/app/data"]
@@ -31,6 +39,7 @@ services:
 
   connector-config:
     image: mishramesh/mysocial:connector-config-latest
+    pull_policy: always
     environment:
       CONNECTOR_DB_URL: sqlite:///./data/connectors.db
     volumes: ["connector-data:/app/data"]
@@ -38,6 +47,7 @@ services:
 
   registry-intelligence:
     image: mishramesh/mysocial:registry-intelligence-latest
+    pull_policy: always
     environment:
       REGISTRY_DB_URL: sqlite:///./data/registry.db
       MATCH_CONFIDENCE_THRESHOLD: "0.85"
@@ -46,6 +56,7 @@ services:
 
   delivery-intelligence:
     image: mishramesh/mysocial:delivery-intelligence-latest
+    pull_policy: always
     environment:
       DELIVERY_DB_URL: sqlite:///./data/delivery.db
     volumes: ["delivery-data:/app/data"]
@@ -53,6 +64,7 @@ services:
 
   openg2p-sync:
     image: mishramesh/mysocial:openg2p-sync-latest
+    pull_policy: always
     environment:
       # Real OpenG2P instance's `odoo` service, reachable once you follow
       # deploy/openg2p/README.md and join it to social-registry-net. Until
@@ -64,6 +76,7 @@ services:
 
   sunbird-adapter:
     image: mishramesh/mysocial:sunbird-adapter-latest
+    pull_policy: always
     environment:
       # Real Sunbird RC's `registry` service — see deploy/sunbird-rc/README.md.
       # Unreachable from this file's own network until you follow that guide
@@ -75,10 +88,12 @@ services:
     # Stand-in for real DIGIT's egov-workflow-v2 API — see services/digit-mock/README.md.
     # Swap digit-adapter's DIGIT_BASE_URL below for a real DIGIT instance later; nothing else changes.
     image: mishramesh/mysocial:digit-mock-latest
+    pull_policy: always
     restart: unless-stopped
 
   digit-adapter:
     image: mishramesh/mysocial:digit-adapter-latest
+    pull_policy: always
     environment:
       DIGIT_BASE_URL: http://digit-mock:8083
       DIGIT_TENANT_ID: pilot
@@ -89,6 +104,7 @@ services:
 
   inji-adapter:
     image: mishramesh/mysocial:inji-adapter-latest
+    pull_policy: always
     environment:
       INJI_CERTIFY_BASE_URL: http://localhost:8084
       INJI_VERIFY_BASE_URL: http://localhost:8085
@@ -97,6 +113,7 @@ services:
 
   api-gateway:
     image: mishramesh/mysocial:api-gateway-latest
+    pull_policy: always
     environment:
       # Blank = no auth (fine here: api-gateway isn't published to the host at
       # all in this file — only nginx's proxy inside the frontend container can
@@ -128,6 +145,7 @@ services:
     # with the synthetic POC story (scripts/seed_demo.py) via api-gateway's own
     # APIs. Not published to the host; only reachable via api-gateway/frontend.
     image: mishramesh/mysocial:demo-seeder-latest
+    pull_policy: always
     environment:
       API_BASE_URL: http://api-gateway:8000
       GATEWAY_API_KEY: ""
@@ -137,6 +155,7 @@ services:
 
   frontend:
     image: mishramesh/mysocial:frontend-latest
+    pull_policy: always
     ports: ["6561:80"]
     depends_on:
       - api-gateway
